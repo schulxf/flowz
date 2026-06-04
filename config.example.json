@@ -1,0 +1,18 @@
+{
+  "api_key": "",
+  "base_url": "https://api.groq.com/openai/v1",
+  "transcription_model": "whisper-large-v3",
+  "language": "",
+  "request_timeout_seconds": 60,
+  "http_transport": "curl",
+  "curl_path": "curl.exe",
+  "ffmpeg_path": "ffmpeg",
+  "ffmpeg_device": "",
+  "post_process": false,
+  "post_process_model": "openai/gpt-oss-20b",
+  "paste_result": true,
+  "append_space_after_sentence": true,
+  "preserve_text_clipboard": true,
+  "visual_indicator": true,
+  "visual_indicator_success_seconds": 1.1
+}

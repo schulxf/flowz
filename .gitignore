@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local configuration and secrets
+.env
+.env.*
+config.json
+*.local.json
+
+# Runtime logs and debug output
+*.log
+last-error.txt
+freeflow.log
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Test/cache output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+
+# Temporary audio/output files
+freeflow-win-*.wav
+*.response
+*.curlrc
