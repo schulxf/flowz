@@ -23,6 +23,7 @@ OutputBaseFilename=FlowzSetup-{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=lowest
+SetupIconFile={#RepoRoot}\assets\flowz.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 CloseApplications=yes
 RestartApplications=no
