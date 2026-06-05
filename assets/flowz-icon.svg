@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Flowz">
+  <defs>
+    <linearGradient id="fz-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B4F86"></stop>
+      <stop offset="0.55" stop-color="#0E3461"></stop>
+      <stop offset="1" stop-color="#081D38"></stop>
+    </linearGradient>
+    <linearGradient id="fz-mark" x1="20" y1="26" x2="80" y2="74" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#B9ECFF"></stop>
+      <stop offset="0.45" stop-color="#5CCBFF"></stop>
+      <stop offset="1" stop-color="#1E9BEF"></stop>
+    </linearGradient>
+    <linearGradient id="fz-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.20"></stop>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"></stop>
+    </linearGradient>
+    <filter id="fz-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="b"></feGaussianBlur>
+      <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="92" height="92" rx="27" fill="url(#fz-bg)"></rect>
+  <rect x="4" y="4" width="92" height="92" rx="27" fill="url(#fz-gloss)"></rect>
+  <rect x="4.75" y="4.75" width="90.5" height="90.5" rx="26.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="1.2"></rect>
+  <path d="M20 54 C 30 28, 42 28, 50 50 S 70 74, 80 46" fill="none" stroke="url(#fz-mark)" stroke-opacity="0.22" stroke-width="9" stroke-linecap="round" transform="translate(0 5)"></path>
+  <path d="M20 52 C 30 26, 42 26, 50 50 S 70 74, 80 48" fill="none" stroke="url(#fz-mark)" stroke-width="9" stroke-linecap="round" filter="url(#fz-glow)"></path>
+</svg>

@@ -35,5 +35,8 @@
   "audio_ready_sound_duration_ms": 70,
   "visual_indicator": true,
   "visual_indicator_success_seconds": 1.1,
-  "tray_icon": true
+  "visual_indicator_x": -1,
+  "visual_indicator_y": -1,
+  "tray_icon": true,
+  "ui_theme": "dark"
 }

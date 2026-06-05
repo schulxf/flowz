@@ -7,12 +7,20 @@ if ($LASTEXITCODE -ne 0) {
     python -m pip install pyinstaller
 }
 
+$distExe = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "dist\Flowz.exe"))
+Get-Process -Name "Flowz" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and ([System.IO.Path]::GetFullPath($_.Path) -eq $distExe) } |
+    Stop-Process -Force
+
 $previousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 python -m PyInstaller `
     --noconsole `
     --onefile `
     --name Flowz `
+    --icon "assets\flowz.ico" `
+    --add-data "assets\flowz.ico;assets" `
+    --hidden-import flowz_ui `
     --clean `
     freeflow_win.py
 $pyInstallerExitCode = $LASTEXITCODE

@@ -23,12 +23,23 @@ OutputBaseFilename=FlowzSetup-{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=lowest
+WizardStyle=modern
+SetupIconFile={#RepoRoot}\assets\flowz.ico
+WizardImageFile={#RepoRoot}\assets\flowz-installer-sidebar.bmp
+WizardSmallImageFile={#RepoRoot}\assets\flowz-installer-small.bmp
+WizardImageBackColor=$000B0707
 UninstallDisplayIcon={app}\{#AppExeName}
 CloseApplications=yes
 RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Messages]
+WelcomeLabel1=Install Flowz
+WelcomeLabel2=Fast voice dictation for Windows.%n%nHold Ctrl + Windows, speak, release, and Flowz pastes the text where your cursor is.
+FinishedHeadingLabel=Flowz is ready
+FinishedLabel=Flowz was installed successfully.%n%nOpen Flowz Settings to configure your provider, microphone, ready cue, and startup behavior.
 
 [Tasks]
 Name: "startup"; Description: "Start Flowz when Windows starts"; GroupDescription: "Startup options:"; Flags: unchecked

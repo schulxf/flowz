@@ -87,6 +87,8 @@ GWL_EXSTYLE = -20
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_TOOLWINDOW = 0x00000080
 WS_EX_NOACTIVATE = 0x08000000
+IMAGE_ICON = 1
+LR_LOADFROMFILE = 0x00000010
 MUTEX_NAME = "Local\\FlowzSingleInstance"
 STOP_EVENT_NAME = "Local\\FlowzStop"
 NIM_ADD = 0x00000000
@@ -145,6 +147,15 @@ def legacy_app_config_dirs() -> list[Path]:
 
 def config_path() -> Path:
     return app_config_dir() / CONFIG_FILE_NAME
+
+
+def app_asset_path(filename: str) -> Path:
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        bundled = Path(base) / "assets" / filename
+        if bundled.exists():
+            return bundled
+    return Path(__file__).resolve().parent / "assets" / filename
 
 
 def migrate_legacy_config_if_needed() -> None:
@@ -318,7 +329,10 @@ class AppConfig:
     audio_ready_sound_duration_ms: int = 70
     visual_indicator: bool = True
     visual_indicator_success_seconds: float = 1.1
+    visual_indicator_x: int = -1
+    visual_indicator_y: int = -1
     tray_icon: bool = True
+    ui_theme: str = "dark"
 
     @classmethod
     def load(cls) -> "AppConfig":
@@ -581,6 +595,9 @@ class FFmpegRecorder:
 
         return output
 
+    def audio_levels(self, count: int = 18) -> list[float]:
+        return [0.0] * max(1, count)
+
 
 class WarmFFmpegRecorder(FFmpegRecorder):
     def __init__(self, config: AppConfig):
@@ -598,6 +615,8 @@ class WarmFFmpegRecorder(FFmpegRecorder):
         self._recorded_chunks: list[bytes] = []
         self._last_activity = time.perf_counter()
         self._stderr_tail: deque[str] = deque(maxlen=20)
+        self._audio_level = 0.0
+        self._level_history: deque[float] = deque(maxlen=32)
         self._chunk_bytes = max(PCM_SAMPLE_WIDTH, pcm_bytes_for_ms(LOW_LATENCY_READ_CHUNK_MS))
         self._start_idle_watcher()
 
@@ -744,9 +763,12 @@ class WarmFFmpegRecorder(FFmpegRecorder):
                     data = data[:-1]
                 if not data:
                     continue
+                chunk_level = min(1.0, pcm16_rms(data) / 2600)
                 with self._lock:
                     if process is not self.process:
                         break
+                    self._audio_level = (self._audio_level * 0.62) + (chunk_level * 0.38)
+                    self._level_history.append(self._audio_level)
                     self._ready.set()
                     self._append_ring_locked(data)
                     if self._recording:
@@ -803,6 +825,8 @@ class WarmFFmpegRecorder(FFmpegRecorder):
             self._recorded_chunks = []
             self._ring.clear()
             self._ring_bytes = 0
+            self._audio_level = 0.0
+            self._level_history.clear()
             self._reader_stop.set()
             self._ready.clear()
 
@@ -850,6 +874,17 @@ class WarmFFmpegRecorder(FFmpegRecorder):
         with self._lock:
             details = "\n".join(self._stderr_tail)
         raise RuntimeError(f"ffmpeg failed to start warm capture. {details}".strip())
+
+    def audio_levels(self, count: int = 18) -> list[float]:
+        count = max(1, int(count))
+        with self._lock:
+            levels = list(self._level_history)[-count:]
+            current = self._audio_level
+        if not levels:
+            levels = [current]
+        if len(levels) < count:
+            levels = ([levels[0]] * (count - len(levels))) + levels
+        return [max(0.0, min(1.0, level)) for level in levels[-count:]]
 
 
 def create_recorder(config: AppConfig) -> FFmpegRecorder:
@@ -1523,6 +1558,17 @@ user32.PostQuitMessage.argtypes = [ctypes.c_int]
 user32.PostQuitMessage.restype = None
 user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
 user32.LoadIconW.restype = wintypes.HICON
+user32.LoadImageW.argtypes = [
+    wintypes.HINSTANCE,
+    wintypes.LPCWSTR,
+    wintypes.UINT,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.UINT,
+]
+user32.LoadImageW.restype = wintypes.HANDLE
+user32.DestroyIcon.argtypes = [wintypes.HICON]
+user32.DestroyIcon.restype = wintypes.BOOL
 user32.CreatePopupMenu.argtypes = []
 user32.CreatePopupMenu.restype = wintypes.HMENU
 user32.AppendMenuW.argtypes = [wintypes.HMENU, wintypes.UINT, ULONG_PTR, wintypes.LPCWSTR]
@@ -1646,6 +1692,7 @@ def request_running_app_stop() -> bool:
 
 class VisualIndicator:
     def __init__(self, config: AppConfig):
+        self.config = config
         self.enabled = bool_setting(config.visual_indicator)
         self.success_seconds = float(config.visual_indicator_success_seconds)
         self.events: queue.Queue[tuple[str, str, float | None]] = queue.Queue()
@@ -1656,7 +1703,21 @@ class VisualIndicator:
         self.current_text = ""
         self.hide_after: float | None = None
         self.animation_tick = 0
+        self.state_started_at = time.time()
         self.ready = threading.Event()
+        self.hover = False
+        self.hover_candidate = False
+        self.hover_token = 0
+        self.dragging = False
+        self.drag_moved = False
+        self.drag_offset_x = 0
+        self.drag_offset_y = 0
+        self.press_action: str | None = None
+        self.action_zones: list[tuple[int, int, int, int, str]] = []
+        self.audio_level_source: Callable[[int], list[float]] | None = None
+
+    def set_audio_source(self, source: Callable[[int], list[float]] | None) -> None:
+        self.audio_level_source = source if callable(source) else None
 
     def start(self) -> None:
         if not self.enabled or self.thread:
@@ -1740,6 +1801,11 @@ class VisualIndicator:
         )
         canvas.pack(fill="both", expand=True)
         self.canvas = canvas
+        canvas.bind("<Enter>", self._on_pointer_enter)
+        canvas.bind("<Leave>", self._on_pointer_leave)
+        canvas.bind("<ButtonPress-1>", self._on_pointer_press)
+        canvas.bind("<B1-Motion>", self._on_pointer_motion)
+        canvas.bind("<ButtonRelease-1>", self._on_pointer_release)
 
         root.update_idletasks()
         self._make_nonactivating(root.winfo_id())
@@ -1752,10 +1818,113 @@ class VisualIndicator:
     def _make_nonactivating(self, hwnd: int) -> None:
         try:
             style = get_window_long_ptr(hwnd, GWL_EXSTYLE)
-            style |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT
+            style |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
+            style &= ~WS_EX_TRANSPARENT
             set_window_long_ptr(hwnd, GWL_EXSTYLE, style)
         except Exception:
             pass
+
+    def _on_pointer_enter(self, _event) -> None:
+        if self.current_state != "idle" or self.dragging:
+            return
+        self.hover_candidate = True
+        self.hover_token += 1
+        token = self.hover_token
+        if self.root:
+            self.root.after(420, lambda: self._open_hover_if_still(token))
+
+    def _open_hover_if_still(self, token: int) -> None:
+        if token != self.hover_token or not self.hover_candidate or self.dragging:
+            return
+        if self.current_state != "idle":
+            return
+        self.hover = True
+        self._render()
+
+    def _on_pointer_leave(self, _event) -> None:
+        self.hover_candidate = False
+        self.hover_token += 1
+        if not self.dragging:
+            self.hover = False
+            self._render()
+
+    def _on_pointer_press(self, event) -> None:
+        if not self.root:
+            return
+        self.press_action = self._hit_action(event.x, event.y)
+        if self.press_action:
+            return
+        self.hover_candidate = False
+        self.hover_token += 1
+        self.hover = False
+        self.dragging = True
+        self.drag_moved = False
+        size = self._idle_size()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = max(0, min(screen_width - size, event.x_root - size // 2))
+        y = max(0, min(screen_height - size, event.y_root - size // 2))
+        if self.canvas:
+            self.canvas.configure(width=size, height=size)
+        self.root.geometry(f"{size}x{size}+{x}+{y}")
+        self.drag_offset_x = size // 2
+        self.drag_offset_y = size // 2
+        self._render()
+
+    def _on_pointer_motion(self, event) -> None:
+        if not self.root or not self.dragging:
+            return
+        width = int(self.canvas["width"]) if self.canvas else 42
+        height = int(self.canvas["height"]) if self.canvas else 42
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = max(0, min(screen_width - width, event.x_root - self.drag_offset_x))
+        y = max(0, min(screen_height - height, event.y_root - self.drag_offset_y))
+        if abs(x - self.root.winfo_x()) > 2 or abs(y - self.root.winfo_y()) > 2:
+            self.drag_moved = True
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _on_pointer_release(self, event) -> None:
+        if not self.root:
+            return
+        if self.press_action:
+            action = self.press_action
+            self.press_action = None
+            if self._hit_action(event.x, event.y) == action:
+                self._run_action(action)
+            return
+        was_dragging = self.dragging
+        self.dragging = False
+        if was_dragging and self.drag_moved:
+            self._save_indicator_position(self.root.winfo_x(), self.root.winfo_y())
+            return
+        self._render()
+
+    def _hit_action(self, x: int, y: int) -> str | None:
+        for x1, y1, x2, y2, action in self.action_zones:
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return action
+        return None
+
+    def _save_indicator_position(self, x: int, y: int) -> None:
+        self.config.visual_indicator_x = int(x)
+        self.config.visual_indicator_y = int(y)
+        try:
+            self.config.save()
+        except Exception as exc:
+            log(f"Could not save visual indicator position: {exc}")
+
+    def _run_action(self, action: str) -> None:
+        try:
+            if action == "settings":
+                launch_settings_window()
+            elif action == "config":
+                app_config_dir().mkdir(parents=True, exist_ok=True)
+                subprocess.Popen(["explorer.exe", str(app_config_dir())], creationflags=CREATE_NO_WINDOW)
+            elif action == "stop":
+                request_running_app_stop()
+        except Exception as exc:
+            log(f"Visual indicator action failed ({action}): {exc}")
 
     def _pump(self) -> None:
         while True:
@@ -1772,6 +1941,7 @@ class VisualIndicator:
             self.current_state = state
             self.current_text = text
             self.animation_tick = 0
+            self.state_started_at = time.time()
             if duration is None:
                 self.hide_after = None
             else:
@@ -1809,81 +1979,25 @@ class VisualIndicator:
         self._apply_layout(state)
         width = int(canvas["width"])
         height = int(canvas["height"])
+        self.action_zones = []
         self.animation_tick += 1
-
-        palette = {
-            "idle": ("#101214", "#36d17f", "#ffffff", "#8ca39a"),
-            "starting": ("#121316", "#d7a84f", "#ffffff", "#f1d391"),
-            "recording": ("#121316", "#ff4d5e", "#ffffff", "#ffb3bb"),
-            "transcribing": ("#121316", "#6aa7ff", "#ffffff", "#b9d6ff"),
-            "success": ("#101411", "#36d17f", "#ffffff", "#a9f0c7"),
-            "paused": ("#141311", "#d7a84f", "#ffffff", "#f1d391"),
-            "empty": ("#141311", "#d7a84f", "#ffffff", "#f1d391"),
-            "error": ("#171112", "#ff5f6f", "#ffffff", "#ffb3bb"),
-        }
-        bg, accent, fg, muted = palette.get(state, palette["idle"])
+        self._draw_hud_shell(width, height)
 
         if state == "idle":
-            pulse = 12 + (self.animation_tick % 10) * 0.25
-            cx = width // 2
-            cy = height // 2
-            canvas.create_oval(3, 3, width - 3, height - 3, fill=bg, outline="#2b2d33", width=1)
-            canvas.create_oval(cx - pulse, cy - pulse, cx + pulse, cy + pulse, fill="", outline="#1f3a2c", width=1)
-            for i, bar_h in enumerate([7, 13, 18, 11, 6]):
-                x = cx - 10 + i * 5
-                y1 = cy - bar_h / 2
-                y2 = cy + bar_h / 2
-                color = accent if i == 2 else "#8ff0b8"
-                canvas.create_line(x, y1, x, y2, fill=color, width=2, capstyle="round")
-            canvas.create_oval(width - 12, 8, width - 7, 13, fill=accent, outline=accent)
-            return
-
-        self._rounded_rect(2, 2, width - 2, height - 2, 18, fill=bg, outline="#2b2d33")
-        self._rounded_rect(3, 3, width - 3, height - 3, 17, fill="", outline="#202228")
-
-        cx = 28
-        cy = height // 2
-        if state == "starting":
-            dots = (self.animation_tick % 8) + 1
-            for i in range(8):
-                angle = (i / 8) * 6.28318
-                color = accent if i < dots else "#5d4a23"
-                x = cx + 8 * math.cos(angle)
-                y = cy + 8 * math.sin(angle)
-                canvas.create_oval(x - 2, y - 2, x + 2, y + 2, fill=color, outline=color)
-            sub = "opening mic"
+            self._draw_idle_hud(width, height)
         elif state == "recording":
-            pulse = 5 + (self.animation_tick % 6)
-            canvas.create_oval(cx - pulse, cy - pulse, cx + pulse, cy + pulse, fill="", outline=accent, width=2)
-            canvas.create_oval(cx - 5, cy - 5, cx + 5, cy + 5, fill=accent, outline=accent)
-            sub = "release to paste"
-        elif state == "transcribing":
-            dots = (self.animation_tick % 8) + 1
-            for i in range(8):
-                angle = (i / 8) * 6.28318
-                alpha_index = (i - dots) % 8
-                color = accent if alpha_index < 3 else "#33506e"
-                x = cx + 8 * math.cos(angle)
-                y = cy + 8 * math.sin(angle)
-                canvas.create_oval(x - 2, y - 2, x + 2, y + 2, fill=color, outline=color)
-            sub = "cleaning audio"
+            self._draw_recording_hud(width, height)
+        elif state in {"starting", "transcribing"}:
+            label = "Opening microphone..." if state == "starting" else "Transcribing..."
+            self._draw_progress_hud(width, height, label)
         elif state == "success":
-            canvas.create_line(cx - 8, cy, cx - 2, cy + 6, cx + 9, cy - 7, fill=accent, width=3, capstyle="round", joinstyle="round")
-            sub = "ready"
+            self._draw_done_hud(width, height, self.current_text or "Pasted")
         elif state == "paused":
-            canvas.create_line(cx - 5, cy - 8, cx - 5, cy + 8, fill=accent, width=3, capstyle="round")
-            canvas.create_line(cx + 5, cy - 8, cx + 5, cy + 8, fill=accent, width=3, capstyle="round")
-            sub = "dictation off"
+            self._draw_message_hud(width, height, "Paused", "dictation off", "#F5B23A")
         elif state == "empty":
-            canvas.create_line(cx - 8, cy, cx + 8, cy, fill=accent, width=3, capstyle="round")
-            sub = "ready"
+            self._draw_message_hud(width, height, "No speech", "ready", "#F5B23A")
         else:
-            canvas.create_line(cx - 7, cy - 7, cx + 7, cy + 7, fill=accent, width=3, capstyle="round")
-            canvas.create_line(cx + 7, cy - 7, cx - 7, cy + 7, fill=accent, width=3, capstyle="round")
-            sub = "check terminal"
-
-        canvas.create_text(50, 17, text=self.current_text, fill=fg, anchor="w", font=("Segoe UI", 10, "bold"))
-        canvas.create_text(50, 32, text=sub, fill=muted, anchor="w", font=("Segoe UI", 8))
+            self._draw_message_hud(width, height, self.current_text or "Error", "open Flowz Settings", "#FF6473")
 
     def _layout_for_state(self, state: str) -> tuple[int, int, int, int]:
         if self.root:
@@ -1893,21 +2007,39 @@ class VisualIndicator:
             screen_width = 1920
             screen_height = 1080
 
-        if state == "idle":
-            width = 44
-            height = 44
-            x = max(0, screen_width - width - 22)
-            y = max(0, screen_height - height - 78)
-            return width, height, x, y
+        if state == "recording":
+            width, height = 240, 44
+        elif state == "success":
+            width, height = 260, 46
+        elif state == "idle":
+            size = self._idle_size()
+            width, height = (220, 146) if self.hover and not self.dragging else (size, size)
+        else:
+            width, height = 246, 46
 
-        width = 246
-        height = 48
-        x = max(0, (screen_width - width) // 2)
-        y = 42
+        size = self._idle_size()
+        default_x = screen_width - size - 28
+        default_y = screen_height - size - 78
+        try:
+            saved_x = int(self.config.visual_indicator_x)
+            saved_y = int(self.config.visual_indicator_y)
+        except (TypeError, ValueError):
+            saved_x, saved_y = -1, -1
+        if saved_x < 0 or saved_y < 0:
+            x, y = default_x, default_y
+        else:
+            x, y = saved_x, saved_y
+        x = max(0, min(screen_width - width, x))
+        y = max(0, min(screen_height - height, y))
         return width, height, x, y
+
+    def _idle_size(self) -> int:
+        return 24
 
     def _apply_layout(self, state: str) -> None:
         if not self.root or not self.canvas:
+            return
+        if self.dragging:
             return
         width, height, x, y = self._layout_for_state(state)
         current_width = int(self.canvas["width"])
@@ -1934,6 +2066,212 @@ class VisualIndicator:
             x1, y1,
         ]
         self.canvas.create_polygon(points, smooth=True, splinesteps=20, **kwargs)
+
+    def _draw_hud_shell(self, width: int, height: int) -> None:
+        if not self.canvas:
+            return
+        radius = 18 if min(width, height) > 44 else 12
+        self._rounded_rect(1, 1, width - 1, height - 1, radius, fill="#070B12", outline="#22304A")
+        self._rounded_rect(2, 2, width - 2, height - 2, max(8, radius - 1), fill="", outline="#132238")
+        if width > 90:
+            self.canvas.create_line(18, 2, width - 18, 2, fill="#26374E", width=1)
+
+    def _draw_idle_hud(self, width: int, height: int) -> None:
+        if not self.canvas:
+            return
+        c = self.canvas
+        if not self.hover:
+            self._rounded_rect(4, 4, width - 4, height - 4, 6, fill="#122238", outline="#1C3454")
+            self._draw_brand_mark(8, 9, 10, 1.7)
+            return
+
+        self._rounded_rect(12, 12, 46, 46, 10, fill="#102037", outline="#1D385B")
+        self._draw_brand_mark(20, 21, 18, 2.2)
+        c.create_text(58, 20, text="Flowz", fill="#E8EEF6", anchor="w", font=("Segoe UI", 10, "bold"))
+        c.create_oval(59, 36, 67, 44, fill="#2BD4A0", outline="")
+        c.create_text(74, 40, text="Ready", fill="#AFC0D2", anchor="w", font=("Segoe UI", 8, "bold"))
+
+        self._rounded_rect(width - 78, 18, width - 14, 40, 9, fill="#101927", outline="#233147")
+        c.create_text(width - 46, 29, text="running", fill="#8FA1B7", font=("Segoe UI", 7, "bold"))
+
+        c.create_line(14, 56, width - 14, 56, fill="#182538")
+        c.create_text(16, 72, text="Hold", fill="#8FA1B7", anchor="w", font=("Segoe UI", 8))
+        self._draw_keycap(52, 63, "Ctrl")
+        c.create_text(88, 72, text="+", fill="#6E7D91", anchor="center", font=("Segoe UI", 8, "bold"))
+        self._draw_keycap(97, 63, "Win")
+        c.create_text(134, 72, text="to talk", fill="#8FA1B7", anchor="w", font=("Segoe UI", 8))
+
+        self._draw_action_button(14, 89, width - 14, 115, "Settings", "settings", active=True)
+        self._draw_action_button(14, 121, 106, 140, "Config", "config", active=False)
+        self._draw_action_button(116, 121, width - 14, 140, "Stop", "stop", active=False, danger=True)
+
+    def _draw_action_button(
+        self,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        label: str,
+        action: str,
+        active: bool = False,
+        danger: bool = False,
+    ) -> None:
+        if not self.canvas:
+            return
+        if danger:
+            fill, outline, text = "#211018", "#473044", "#FF9BA6"
+        elif active:
+            fill, outline, text = "#172A40", "#29547D", "#DCEBFA"
+        else:
+            fill, outline, text = "#101927", "#243147", "#AFC0D2"
+        self._rounded_rect(x1, y1, x2, y2, 8, fill=fill, outline=outline)
+        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text=label, fill=text, font=("Segoe UI", 8, "bold"))
+        self.action_zones.append((x1, y1, x2, y2, action))
+
+    def _draw_recording_hud(self, width: int, height: int) -> None:
+        if not self.canvas:
+            return
+        c = self.canvas
+        level = max(self._audio_levels(6) or [0.0])
+        ring = 7 + (level * 5)
+        c.create_oval(20 - ring, height // 2 - ring, 20 + ring, height // 2 + ring, outline="#603041", width=1)
+        c.create_oval(15, height // 2 - 5, 25, height // 2 + 5, fill="#FF6473", outline="#FF6473")
+        c.create_text(38, height // 2, text="Listening", fill="#E8EEF6", anchor="w", font=("Segoe UI", 9, "bold"))
+        self._draw_waveform(104, 12, 82, 20, self._audio_levels(14))
+        c.create_text(width - 14, height // 2, text=self._recording_timer(), fill="#AFC0D2",
+                      anchor="e", font=("Consolas", 9))
+
+    def _draw_progress_hud(self, width: int, height: int, label: str) -> None:
+        if not self.canvas:
+            return
+        c = self.canvas
+        cx, cy = 29, height // 2
+        dots = 10
+        active = self.animation_tick % dots
+        for i in range(dots):
+            angle = (i / dots) * math.tau
+            color = "#5CCBFF" if i == active else "#2B3B50"
+            x = cx + 9 * math.cos(angle)
+            y = cy + 9 * math.sin(angle)
+            c.create_oval(x - 2, y - 2, x + 2, y + 2, fill=color, outline=color)
+        c.create_text(54, 20, text=label, fill="#E8EEF6", anchor="w", font=("Segoe UI", 10, "bold"))
+        self._rounded_rect(54, 35, width - 20, 39, 3, fill="#243041", outline="")
+        progress = ((self.animation_tick * 9) % (width + 70)) - 70
+        px1 = max(54, 54 + progress)
+        px2 = min(width - 20, 104 + progress)
+        if px2 > px1:
+            self._rounded_rect(px1, 35, px2, 39, 3, fill="#1E9BEF", outline="")
+
+    def _draw_done_hud(self, width: int, height: int, text: str) -> None:
+        if not self.canvas:
+            return
+        c = self.canvas
+        cx, cy = 30, height // 2
+        c.create_oval(cx - 15, cy - 15, cx + 15, cy + 15, fill="#123428", outline="#245A46")
+        c.create_line(cx - 7, cy, cx - 2, cy + 6, cx + 10, cy - 7, fill="#2BD4A0",
+                      width=3, capstyle="round", joinstyle="round")
+        c.create_text(58, 19, text="Pasted" if text == "Pasted" else text,
+                      fill="#2BD4A0", anchor="w", font=("Segoe UI", 10, "bold"))
+        c.create_text(58, 36, text="Ready for next dictation.",
+                      fill="#8997AA", anchor="w", font=("Segoe UI", 8))
+        c.create_text(width - 18, height // 2, text=f"{max(0.1, time.time() - self.state_started_at):.1f}s",
+                      fill="#708094", anchor="e", font=("Consolas", 8))
+
+    def _draw_message_hud(self, width: int, height: int, title: str, subtitle: str, accent: str) -> None:
+        if not self.canvas:
+            return
+        c = self.canvas
+        cx, cy = 30, height // 2
+        c.create_oval(cx - 14, cy - 14, cx + 14, cy + 14, fill="#182131", outline="#2A3340")
+        if accent == "#F5B23A":
+            c.create_line(cx - 5, cy - 8, cx - 5, cy + 8, fill=accent, width=3, capstyle="round")
+            c.create_line(cx + 5, cy - 8, cx + 5, cy + 8, fill=accent, width=3, capstyle="round")
+        else:
+            c.create_line(cx - 7, cy - 7, cx + 7, cy + 7, fill=accent, width=3, capstyle="round")
+            c.create_line(cx + 7, cy - 7, cx - 7, cy + 7, fill=accent, width=3, capstyle="round")
+        c.create_text(58, 20, text=title, fill="#E8EEF6", anchor="w", font=("Segoe UI", 10, "bold"), width=width - 75)
+        c.create_text(58, 38, text=subtitle, fill="#8997AA", anchor="w", font=("Segoe UI", 8))
+
+    def _draw_waveform(self, x: int, y: int, width: int, height: int, levels: list[float]) -> None:
+        if not self.canvas:
+            return
+        bars = max(1, len(levels))
+        gap = 2
+        bar_w = max(2, (width - gap * (bars - 1)) / bars)
+        for i in range(bars):
+            level = max(0.0, min(1.0, levels[i]))
+            h = max(3, height * (0.14 + level * 0.86))
+            bx = x + i * (bar_w + gap)
+            by = y + (height - h) / 2
+            color = "#5CCBFF" if level > 0.22 else "#2D5B7C"
+            self.canvas.create_line(bx, by, bx, by + h, fill=color, width=max(2, int(bar_w)), capstyle="round")
+
+    def _audio_levels(self, count: int) -> list[float]:
+        source = self.audio_level_source
+        if not callable(source):
+            return [0.0] * count
+        try:
+            levels = list(source(count))
+        except Exception:
+            return [0.0] * count
+        if not levels:
+            return [0.0] * count
+        if len(levels) < count:
+            levels = ([levels[0]] * (count - len(levels))) + levels
+        return [max(0.0, min(1.0, float(level))) for level in levels[-count:]]
+
+    def _draw_brand_mark(self, x: int, y: int, size: int, width: float) -> None:
+        if not self.canvas:
+            return
+        pts = self._brand_points(24)
+        for i in range(len(pts) - 1):
+            color = self._flow_gradient(i / max(1, len(pts) - 2))
+            x0, y0 = x + pts[i][0] * size / 100, y + pts[i][1] * size / 100
+            x1, y1 = x + pts[i + 1][0] * size / 100, y + pts[i + 1][1] * size / 100
+            self.canvas.create_line(x0, y0, x1, y1, fill=color, width=width, capstyle="round")
+
+    def _draw_keycap(self, x: int, y: int, text: str) -> None:
+        if not self.canvas:
+            return
+        w = 28 if text == "Ctrl" else 27
+        self._rounded_rect(x, y, x + w, y + 17, 5, fill="#202A3A", outline="#334055")
+        self.canvas.create_text(x + w / 2, y + 8, text=text, fill="#C8D3E2", font=("Segoe UI", 7, "bold"))
+
+    def _recording_timer(self) -> str:
+        elapsed = max(0, int(time.time() - self.state_started_at))
+        return f"{elapsed // 60:02d}:{elapsed % 60:02d}"
+
+    @staticmethod
+    def _brand_points(steps: int) -> list[tuple[float, float]]:
+        def cubic(p0, p1, p2, p3):
+            points = []
+            for i in range(steps + 1):
+                t = i / steps
+                u = 1 - t
+                points.append((
+                    u**3 * p0[0] + 3 * u**2 * t * p1[0] + 3 * u * t**2 * p2[0] + t**3 * p3[0],
+                    u**3 * p0[1] + 3 * u**2 * t * p1[1] + 3 * u * t**2 * p2[1] + t**3 * p3[1],
+                ))
+            return points
+
+        first = cubic((20, 52), (30, 26), (42, 26), (50, 50))
+        second = cubic((50, 50), (58, 74), (70, 74), (80, 48))
+        return first + second[1:]
+
+    @staticmethod
+    def _flow_gradient(t: float) -> str:
+        stops = [
+            (0.0, (0xB9, 0xEC, 0xFF)),
+            (0.45, (0x5C, 0xCB, 0xFF)),
+            (1.0, (0x1E, 0x9B, 0xEF)),
+        ]
+        t = max(0.0, min(1.0, t))
+        for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+            if t <= t1:
+                f = (t - t0) / ((t1 - t0) or 1.0)
+                rgb = tuple(round(c0[i] + (c1[i] - c0[i]) * f) for i in range(3))
+                return "#%02X%02X%02X" % rgb
+        return "#1E9BEF"
 
 
 class KeyboardHook:
@@ -2111,6 +2449,7 @@ class FreeFlowController:
         self.config = config
         self.indicator = indicator
         self.recorder = create_recorder(config)
+        self.indicator.set_audio_source(getattr(self.recorder, "audio_levels", None))
         self.client = OpenAICompatibleClient(config)
         self.starting = False
         self.recording = False
@@ -2335,6 +2674,7 @@ class TrayIcon:
         self.controller = controller
         self.hwnd: wintypes.HWND | None = None
         self.hicon: wintypes.HICON | None = None
+        self.owns_hicon = False
         self.class_name = f"{APP_NAME}TrayWindow"
         self._wndproc = WNDPROC(self._window_proc)
 
@@ -2366,7 +2706,7 @@ class TrayIcon:
             raise ctypes.WinError(ctypes.get_last_error())
 
         self.hwnd = hwnd
-        self.hicon = user32.LoadIconW(None, ctypes.cast(ctypes.c_void_p(IDI_APPLICATION), wintypes.LPCWSTR))
+        self.hicon = self._load_icon(instance)
         self._notify(NIM_ADD)
         log("Tray icon installed.")
 
@@ -2378,6 +2718,33 @@ class TrayIcon:
                 pass
             user32.DestroyWindow(self.hwnd)
             self.hwnd = None
+        if self.hicon and self.owns_hicon:
+            try:
+                user32.DestroyIcon(self.hicon)
+            except Exception:
+                pass
+        self.hicon = None
+        self.owns_hicon = False
+
+    def _load_icon(self, instance: wintypes.HINSTANCE) -> wintypes.HICON:
+        icon_path = app_asset_path("flowz.ico")
+        if icon_path.exists():
+            handle = user32.LoadImageW(
+                None,
+                str(icon_path),
+                IMAGE_ICON,
+                16,
+                16,
+                LR_LOADFROMFILE,
+            )
+            if handle:
+                self.owns_hicon = True
+                return wintypes.HICON(handle)
+
+        resource_icon = user32.LoadIconW(instance, ctypes.cast(ctypes.c_void_p(1), wintypes.LPCWSTR))
+        if resource_icon:
+            return resource_icon
+        return user32.LoadIconW(None, ctypes.cast(ctypes.c_void_p(IDI_APPLICATION), wintypes.LPCWSTR))
 
     def _notify(self, message: int) -> None:
         if not self.hwnd:
@@ -2546,6 +2913,14 @@ def setup_config(config: AppConfig) -> None:
 
 
 def show_settings_gui(config: AppConfig) -> None:
+    try:
+        import flowz_ui
+
+        flowz_ui.show_settings_window(config, sys.modules[__name__])
+        return
+    except Exception as exc:
+        log(f"Could not open redesigned settings window; falling back to classic GUI: {exc}")
+
     try:
         import tkinter as tk
         from tkinter import filedialog, messagebox, ttk
