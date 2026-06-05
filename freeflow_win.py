@@ -296,13 +296,14 @@ class AppConfig:
     ffmpeg_prime_duration_ms: int = 120
     low_latency_capture: bool = True
     low_latency_idle_timeout_seconds: int = 60
-    low_latency_preroll_ms: int = 500
+    low_latency_preroll_ms: int = 800
     low_latency_ring_seconds: int = 4
     low_latency_ready_timeout_ms: int = 2000
     trim_silence: bool = True
-    silence_threshold: int = 450
-    silence_padding_ms: int = 140
+    silence_threshold: int = 300
+    silence_padding_ms: int = 280
     silence_min_audio_ms: int = 250
+    audio_quality_defaults_version: int = 2
     log_timing_metrics: bool = True
     post_process: bool = False
     post_process_model: str = "openai/gpt-oss-20b"
@@ -325,14 +326,20 @@ class AppConfig:
         path = config_path()
         config = cls()
 
+        loaded_audio_defaults_version = config.audio_quality_defaults_version
         if path.exists():
             try:
                 data = json.loads(path.read_text(encoding="utf-8-sig"))
             except Exception as exc:
                 raise RuntimeError(f"Could not read config at {path}: {exc}") from exc
+            try:
+                loaded_audio_defaults_version = int(data.get("audio_quality_defaults_version", 1) or 1)
+            except (TypeError, ValueError):
+                loaded_audio_defaults_version = 1
             for key, value in data.items():
                 if hasattr(config, key):
                     setattr(config, key, value)
+            config.apply_audio_quality_migrations(loaded_audio_defaults_version)
 
         env_key = (
             os.environ.get("FREEFLOW_API_KEY")
@@ -347,6 +354,17 @@ class AppConfig:
             config.base_url = env_base.strip()
 
         return config
+
+    def apply_audio_quality_migrations(self, loaded_version: int) -> None:
+        if loaded_version >= 2:
+            return
+        if self.low_latency_preroll_ms == 500:
+            self.low_latency_preroll_ms = 800
+        if self.silence_threshold == 450:
+            self.silence_threshold = 300
+        if self.silence_padding_ms == 140:
+            self.silence_padding_ms = 280
+        self.audio_quality_defaults_version = 2
 
     def save(self) -> None:
         path = config_path()
@@ -640,6 +658,14 @@ class WarmFFmpegRecorder(FFmpegRecorder):
 
         raw_pcm = b"".join(chunks)
         return write_pcm_wav(raw_pcm)
+
+    def clear_recorded_audio(self, reason: str = "manual clear") -> None:
+        with self._lock:
+            if not self._recording:
+                return
+            self._recorded_chunks = []
+            self._last_activity = time.perf_counter()
+        log(f"Warm recorded audio cleared ({reason}).")
 
     def release_idle_capture(self) -> None:
         with self._lock:
@@ -1158,6 +1184,39 @@ def pcm16_rms(raw_pcm: bytes) -> float:
     return math.sqrt(total / len(samples))
 
 
+def pcm16_peak(raw_pcm: bytes) -> int:
+    if len(raw_pcm) < PCM_SAMPLE_WIDTH:
+        return 0
+    if len(raw_pcm) % PCM_SAMPLE_WIDTH:
+        raw_pcm = raw_pcm[:-(len(raw_pcm) % PCM_SAMPLE_WIDTH)]
+    samples = memoryview(raw_pcm).cast("h")
+    if not samples:
+        return 0
+    return max(abs(int(sample)) for sample in samples)
+
+
+def wav_audio_stats(audio_path: Path) -> dict[str, float]:
+    with wave.open(str(audio_path), "rb") as wav_file:
+        channels = wav_file.getnchannels()
+        sample_width = wav_file.getsampwidth()
+        frame_rate = wav_file.getframerate()
+        frames = wav_file.getnframes()
+        raw_pcm = wav_file.readframes(frames)
+    duration_ms = int((frames / frame_rate) * 1000) if frame_rate else 0
+    stats: dict[str, float] = {
+        "duration_ms": duration_ms,
+        "channels": channels,
+        "sample_width": sample_width,
+        "frame_rate": frame_rate,
+        "rms": 0.0,
+        "peak": 0,
+    }
+    if channels == PCM_CHANNELS and sample_width == PCM_SAMPLE_WIDTH:
+        stats["rms"] = round(pcm16_rms(raw_pcm), 1)
+        stats["peak"] = pcm16_peak(raw_pcm)
+    return stats
+
+
 def trim_pcm_silence(raw_pcm: bytes, config: AppConfig) -> tuple[bytes, dict[str, int]]:
     if not bool_setting(config.trim_silence):
         return raw_pcm, {"trimmed_start_ms": 0, "trimmed_end_ms": 0}
@@ -1209,7 +1268,10 @@ def trim_wav_silence(audio_path: Path, config: AppConfig) -> tuple[Path, dict[st
     if channels != PCM_CHANNELS or sample_width != PCM_SAMPLE_WIDTH or frame_rate != PCM_SAMPLE_RATE:
         return audio_path, {"trimmed_start_ms": 0, "trimmed_end_ms": 0}
 
-    trimmed, metrics = trim_pcm_silence(raw_pcm, config)
+    try:
+        trimmed, metrics = trim_pcm_silence(raw_pcm, config)
+    except NoSpeechRecorded:
+        return audio_path, {"trimmed_start_ms": 0, "trimmed_end_ms": 0, "trim_skipped": 1}
     if len(trimmed) == len(raw_pcm):
         return audio_path, metrics
 
@@ -1237,7 +1299,7 @@ def mci_media_type(path: Path) -> str:
     return "mpegvideo"
 
 
-def play_sound_file(path_text: str) -> None:
+def play_sound_file(path_text: str, wait: bool = False) -> bool:
     path = Path(os.path.expandvars(os.path.expanduser(path_text))).resolve()
     if not path.exists():
         raise RuntimeError(f"sound file not found: {path}")
@@ -1261,12 +1323,16 @@ def play_sound_file(path_text: str) -> None:
                     pass
                 opened = False
 
-    threading.Thread(target=worker, name="ready-sound-file", daemon=True).start()
+    if wait:
+        worker()
+    else:
+        threading.Thread(target=worker, name="ready-sound-file", daemon=True).start()
+    return True
 
 
-def play_ready_sound(config: AppConfig) -> None:
+def play_ready_sound(config: AppConfig, wait: bool = False) -> bool:
     if not bool_setting(config.audio_ready_sound):
-        return
+        return False
 
     frequency = int_setting(config.audio_ready_sound_frequency_hz, 880, 37, 32767)
     duration = int_setting(config.audio_ready_sound_duration_ms, 70, 10, 1000)
@@ -1275,39 +1341,43 @@ def play_ready_sound(config: AppConfig) -> None:
     try:
         sound_file = str(config.audio_ready_sound_file).strip()
         if sound_file and backend not in {"off", "none", "false", "0"}:
-            play_sound_file(sound_file)
-            return
+            return play_sound_file(sound_file, wait=wait)
 
         import winsound
 
         if backend in {"system", "alias"}:
-            flags = winsound.SND_ALIAS | winsound.SND_ASYNC
+            flags = winsound.SND_ALIAS
+            if not wait:
+                flags |= winsound.SND_ASYNC
             flags |= getattr(winsound, "SND_SYSTEM", 0)
             winsound.PlaySound(alias, flags)
-            return
+            return True
 
         if backend in {"message", "messagebeep"}:
             winsound.MessageBeep()
-            return
+            return True
 
         if backend in {"off", "none", "false", "0"}:
-            return
+            return False
 
         winsound.Beep(frequency, duration)
+        return True
     except Exception as exc:
         try:
             import winsound
 
             winsound.MessageBeep()
-            return
+            return True
         except Exception:
             pass
         try:
             import winsound
 
             winsound.Beep(frequency, duration)
+            return True
         except Exception as fallback_exc:
             log(f"Ready sound failed: {exc}; fallback failed: {fallback_exc}")
+    return False
 
 
 if ctypes.sizeof(ctypes.c_void_p) == 8:
@@ -2095,7 +2165,12 @@ class FreeFlowController:
         thread.start()
 
     def _start_recording_worker(self) -> None:
+        clear_recorded_audio = getattr(self.recorder, "clear_recorded_audio", None)
+        can_clear_recorded_audio = callable(clear_recorded_audio)
         try:
+            if not can_clear_recorded_audio:
+                self.indicator.recording()
+                play_ready_sound(self.config, wait=True)
             log("Ctrl+Win down: opening microphone...")
             ffmpeg_start_ms = self.recorder.start()
         except Exception as exc:
@@ -2108,6 +2183,15 @@ class FreeFlowController:
             log(f"Could not start recording: {exc}")
             return
 
+        if can_clear_recorded_audio:
+            self.indicator.recording()
+            played_ready_sound = play_ready_sound(self.config, wait=True)
+        else:
+            played_ready_sound = False
+
+        if played_ready_sound and can_clear_recorded_audio:
+            clear_recorded_audio("ready sound")
+
         should_stop = False
         requested_at: float | None = None
         with self._lock:
@@ -2119,15 +2203,13 @@ class FreeFlowController:
                 self.stop_requested = False
                 should_stop = True
 
-        if should_stop:
-            self.stop_recording()
-            return
-
         if requested_at is not None:
             total_ready_ms = (time.perf_counter() - requested_at) * 1000
             log(f"Recording ready after {total_ready_ms:.0f} ms from hotkey ({ffmpeg_start_ms:.0f} ms ffmpeg start check).")
-        self.indicator.recording()
-        play_ready_sound(self.config)
+
+        if should_stop:
+            self.stop_recording()
+            return
 
     def stop_recording(self) -> None:
         with self._lock:
@@ -2150,8 +2232,19 @@ class FreeFlowController:
             log("Ctrl+Win released: preparing audio...")
             audio_path = self.recorder.stop()
             metrics.mark("audio_stop")
+            try:
+                raw_stats = wav_audio_stats(audio_path)
+                log(
+                    "Recorded audio: "
+                    f"{raw_stats['duration_ms']:.0f} ms, "
+                    f"rms={raw_stats['rms']}, peak={raw_stats['peak']}."
+                )
+            except Exception as exc:
+                log(f"Could not inspect recorded audio: {exc}")
             trimmed_path, trim_metrics = trim_wav_silence(audio_path, self.config)
             metrics.mark("silence_trim")
+            if trim_metrics.get("trim_skipped"):
+                log("Silence trim skipped; sending original audio to avoid losing quiet speech.")
             if trim_metrics["trimmed_start_ms"] or trim_metrics["trimmed_end_ms"]:
                 metrics.add(
                     "trimmed",
@@ -2641,12 +2734,34 @@ def show_settings_gui(config: AppConfig) -> None:
 def test_record(config: AppConfig, seconds: float) -> None:
     recorder = create_recorder(config)
     output: Path | None = None
+    trimmed_output: Path | None = None
     log(f"Recording a local microphone test for {seconds:.1f}s...")
     try:
         recorder.start()
         time.sleep(max(0.1, seconds))
         output = recorder.stop()
         log(f"Recorded {output} ({output.stat().st_size} bytes)")
+        try:
+            stats = wav_audio_stats(output)
+            log(
+                "Recorded audio: "
+                f"{stats['duration_ms']:.0f} ms, rms={stats['rms']}, peak={stats['peak']}."
+            )
+        except Exception as exc:
+            log(f"Could not inspect recorded audio: {exc}")
+        trimmed_output, trim_metrics = trim_wav_silence(output, config)
+        if trim_metrics.get("trim_skipped"):
+            log("Silence trim would be skipped; original audio would be sent.")
+        elif trim_metrics["trimmed_start_ms"] or trim_metrics["trimmed_end_ms"]:
+            log(
+                "Silence trim would remove "
+                f"{trim_metrics['trimmed_start_ms']} ms from start and "
+                f"{trim_metrics['trimmed_end_ms']} ms from end."
+            )
+            if trimmed_output != output:
+                log(f"Trimmed test audio: {trimmed_output} ({trimmed_output.stat().st_size} bytes)")
+        else:
+            log("Silence trim would keep the full audio.")
         log("Delete this file after checking it if you do not need it.")
     finally:
         close = getattr(recorder, "close", None)

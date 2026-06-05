@@ -200,8 +200,8 @@ Important options:
 | `ffmpeg_device` | DirectShow microphone name. |
 | `low_latency_capture` | Keeps the mic warm for faster hotkey response. |
 | `low_latency_idle_timeout_seconds` | Releases warm capture after idle time. |
-| `low_latency_preroll_ms` | Includes audio before the hotkey to avoid clipping. |
-| `trim_silence` | Removes leading/trailing silence before upload. |
+| `low_latency_preroll_ms` | Keeps a short safety buffer so the first word is not clipped. |
+| `trim_silence` | Removes leading/trailing silence before upload, but falls back to original audio for quiet speech. |
 | `audio_ready_sound_file` | Optional custom `.mp3` or `.wav` ready sound. |
 | `tray_icon` | Enables tray menu controls. |
 | `log_timing_metrics` | Logs timing for audio, trim, transcription, and paste. |
@@ -224,6 +224,9 @@ Test it:
 .\Flowz.bat --test-sound
 ```
 
+When low-latency capture is enabled, Flowz clears the audio captured while the
+ready sound plays. Start speaking after the cue finishes.
+
 ## Diagnostics
 
 List microphones:
@@ -237,6 +240,8 @@ Record a local WAV without calling the API:
 ```powershell
 .\Flowz.bat --test-record 3
 ```
+
+This logs the WAV duration, RMS, peak level, and what silence trimming would do.
 
 Test provider connectivity:
 
