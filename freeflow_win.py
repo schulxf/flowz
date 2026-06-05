@@ -87,6 +87,8 @@ GWL_EXSTYLE = -20
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_TOOLWINDOW = 0x00000080
 WS_EX_NOACTIVATE = 0x08000000
+IMAGE_ICON = 1
+LR_LOADFROMFILE = 0x00000010
 MUTEX_NAME = "Local\\FlowzSingleInstance"
 STOP_EVENT_NAME = "Local\\FlowzStop"
 NIM_ADD = 0x00000000
@@ -145,6 +147,15 @@ def legacy_app_config_dirs() -> list[Path]:
 
 def config_path() -> Path:
     return app_config_dir() / CONFIG_FILE_NAME
+
+
+def app_asset_path(filename: str) -> Path:
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        bundled = Path(base) / "assets" / filename
+        if bundled.exists():
+            return bundled
+    return Path(__file__).resolve().parent / "assets" / filename
 
 
 def migrate_legacy_config_if_needed() -> None:
@@ -1547,6 +1558,17 @@ user32.PostQuitMessage.argtypes = [ctypes.c_int]
 user32.PostQuitMessage.restype = None
 user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
 user32.LoadIconW.restype = wintypes.HICON
+user32.LoadImageW.argtypes = [
+    wintypes.HINSTANCE,
+    wintypes.LPCWSTR,
+    wintypes.UINT,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.UINT,
+]
+user32.LoadImageW.restype = wintypes.HANDLE
+user32.DestroyIcon.argtypes = [wintypes.HICON]
+user32.DestroyIcon.restype = wintypes.BOOL
 user32.CreatePopupMenu.argtypes = []
 user32.CreatePopupMenu.restype = wintypes.HMENU
 user32.AppendMenuW.argtypes = [wintypes.HMENU, wintypes.UINT, ULONG_PTR, wintypes.LPCWSTR]
@@ -1684,10 +1706,13 @@ class VisualIndicator:
         self.state_started_at = time.time()
         self.ready = threading.Event()
         self.hover = False
+        self.hover_candidate = False
+        self.hover_token = 0
         self.dragging = False
         self.drag_moved = False
         self.drag_offset_x = 0
         self.drag_offset_y = 0
+        self.press_action: str | None = None
         self.action_zones: list[tuple[int, int, int, int, str]] = []
         self.audio_level_source: Callable[[int], list[float]] | None = None
 
@@ -1800,11 +1825,25 @@ class VisualIndicator:
             pass
 
     def _on_pointer_enter(self, _event) -> None:
-        if self.current_state == "idle":
-            self.hover = True
-            self._render()
+        if self.current_state != "idle" or self.dragging:
+            return
+        self.hover_candidate = True
+        self.hover_token += 1
+        token = self.hover_token
+        if self.root:
+            self.root.after(420, lambda: self._open_hover_if_still(token))
+
+    def _open_hover_if_still(self, token: int) -> None:
+        if token != self.hover_token or not self.hover_candidate or self.dragging:
+            return
+        if self.current_state != "idle":
+            return
+        self.hover = True
+        self._render()
 
     def _on_pointer_leave(self, _event) -> None:
+        self.hover_candidate = False
+        self.hover_token += 1
         if not self.dragging:
             self.hover = False
             self._render()
@@ -1812,10 +1851,25 @@ class VisualIndicator:
     def _on_pointer_press(self, event) -> None:
         if not self.root:
             return
+        self.press_action = self._hit_action(event.x, event.y)
+        if self.press_action:
+            return
+        self.hover_candidate = False
+        self.hover_token += 1
+        self.hover = False
         self.dragging = True
         self.drag_moved = False
-        self.drag_offset_x = event.x_root - self.root.winfo_x()
-        self.drag_offset_y = event.y_root - self.root.winfo_y()
+        size = self._idle_size()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = max(0, min(screen_width - size, event.x_root - size // 2))
+        y = max(0, min(screen_height - size, event.y_root - size // 2))
+        if self.canvas:
+            self.canvas.configure(width=size, height=size)
+        self.root.geometry(f"{size}x{size}+{x}+{y}")
+        self.drag_offset_x = size // 2
+        self.drag_offset_y = size // 2
+        self._render()
 
     def _on_pointer_motion(self, event) -> None:
         if not self.root or not self.dragging:
@@ -1833,15 +1887,24 @@ class VisualIndicator:
     def _on_pointer_release(self, event) -> None:
         if not self.root:
             return
+        if self.press_action:
+            action = self.press_action
+            self.press_action = None
+            if self._hit_action(event.x, event.y) == action:
+                self._run_action(action)
+            return
         was_dragging = self.dragging
         self.dragging = False
         if was_dragging and self.drag_moved:
             self._save_indicator_position(self.root.winfo_x(), self.root.winfo_y())
             return
+        self._render()
+
+    def _hit_action(self, x: int, y: int) -> str | None:
         for x1, y1, x2, y2, action in self.action_zones:
-            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
-                self._run_action(action)
-                break
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return action
+        return None
 
     def _save_indicator_position(self, x: int, y: int) -> None:
         self.config.visual_indicator_x = int(x)
@@ -1949,12 +2012,14 @@ class VisualIndicator:
         elif state == "success":
             width, height = 260, 46
         elif state == "idle":
-            width, height = (238, 156) if self.hover else (42, 42)
+            size = self._idle_size()
+            width, height = (220, 146) if self.hover and not self.dragging else (size, size)
         else:
             width, height = 246, 46
 
-        default_x = screen_width - 42 - 28
-        default_y = screen_height - 42 - 78
+        size = self._idle_size()
+        default_x = screen_width - size - 28
+        default_y = screen_height - size - 78
         try:
             saved_x = int(self.config.visual_indicator_x)
             saved_y = int(self.config.visual_indicator_y)
@@ -1967,6 +2032,9 @@ class VisualIndicator:
         x = max(0, min(screen_width - width, x))
         y = max(0, min(screen_height - height, y))
         return width, height, x, y
+
+    def _idle_size(self) -> int:
+        return 24
 
     def _apply_layout(self, state: str) -> None:
         if not self.root or not self.canvas:
@@ -2013,8 +2081,8 @@ class VisualIndicator:
             return
         c = self.canvas
         if not self.hover:
-            self._rounded_rect(9, 9, 33, 33, 8, fill="#122238", outline="#1C3454")
-            self._draw_brand_mark(14, 15, 14, 2.0)
+            self._rounded_rect(4, 4, width - 4, height - 4, 6, fill="#122238", outline="#1C3454")
+            self._draw_brand_mark(8, 9, 10, 1.7)
             return
 
         self._rounded_rect(12, 12, 46, 46, 10, fill="#102037", outline="#1D385B")
@@ -2033,9 +2101,9 @@ class VisualIndicator:
         self._draw_keycap(97, 63, "Win")
         c.create_text(134, 72, text="to talk", fill="#8FA1B7", anchor="w", font=("Segoe UI", 8))
 
-        self._draw_action_button(14, 91, width - 14, 119, "Settings", "settings", active=True)
-        self._draw_action_button(14, 126, 114, 146, "Config", "config", active=False)
-        self._draw_action_button(124, 126, width - 14, 146, "Stop", "stop", active=False, danger=True)
+        self._draw_action_button(14, 89, width - 14, 115, "Settings", "settings", active=True)
+        self._draw_action_button(14, 121, 106, 140, "Config", "config", active=False)
+        self._draw_action_button(116, 121, width - 14, 140, "Stop", "stop", active=False, danger=True)
 
     def _draw_action_button(
         self,
@@ -2606,6 +2674,7 @@ class TrayIcon:
         self.controller = controller
         self.hwnd: wintypes.HWND | None = None
         self.hicon: wintypes.HICON | None = None
+        self.owns_hicon = False
         self.class_name = f"{APP_NAME}TrayWindow"
         self._wndproc = WNDPROC(self._window_proc)
 
@@ -2637,7 +2706,7 @@ class TrayIcon:
             raise ctypes.WinError(ctypes.get_last_error())
 
         self.hwnd = hwnd
-        self.hicon = user32.LoadIconW(None, ctypes.cast(ctypes.c_void_p(IDI_APPLICATION), wintypes.LPCWSTR))
+        self.hicon = self._load_icon(instance)
         self._notify(NIM_ADD)
         log("Tray icon installed.")
 
@@ -2649,6 +2718,33 @@ class TrayIcon:
                 pass
             user32.DestroyWindow(self.hwnd)
             self.hwnd = None
+        if self.hicon and self.owns_hicon:
+            try:
+                user32.DestroyIcon(self.hicon)
+            except Exception:
+                pass
+        self.hicon = None
+        self.owns_hicon = False
+
+    def _load_icon(self, instance: wintypes.HINSTANCE) -> wintypes.HICON:
+        icon_path = app_asset_path("flowz.ico")
+        if icon_path.exists():
+            handle = user32.LoadImageW(
+                None,
+                str(icon_path),
+                IMAGE_ICON,
+                16,
+                16,
+                LR_LOADFROMFILE,
+            )
+            if handle:
+                self.owns_hicon = True
+                return wintypes.HICON(handle)
+
+        resource_icon = user32.LoadIconW(instance, ctypes.cast(ctypes.c_void_p(1), wintypes.LPCWSTR))
+        if resource_icon:
+            return resource_icon
+        return user32.LoadIconW(None, ctypes.cast(ctypes.c_void_p(IDI_APPLICATION), wintypes.LPCWSTR))
 
     def _notify(self, message: int) -> None:
         if not self.hwnd:
