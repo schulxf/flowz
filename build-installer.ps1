@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.1.0",
+    [string]$Version = "0.1.5",
     [switch]$BuildExe,
     [switch]$ZipOnly
 )
@@ -12,7 +12,7 @@ $releaseDir = Join-Path $PSScriptRoot "release"
 $issPath = Join-Path $PSScriptRoot "packaging\flowz.iss"
 
 if ($BuildExe -or -not (Test-Path -LiteralPath $distExe)) {
-    & (Join-Path $PSScriptRoot "build-exe.ps1")
+    & (Join-Path $PSScriptRoot "build-exe.ps1") -RequireBundledFFmpeg
 }
 
 if (-not (Test-Path -LiteralPath $distExe)) {
@@ -34,6 +34,7 @@ function Get-InnoSetupCompiler {
     }
 
     $candidates += @(
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",

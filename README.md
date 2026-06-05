@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="#download">Download</a> -
   <a href="#features">Features</a> -
   <a href="#screenshot">Screenshot</a> -
   <a href="#quick-start">Quick start</a> -
@@ -33,6 +34,16 @@ The workflow is simple:
 
 Flowz is not affiliated with Wispr Flow or its makers.
 
+## Download
+
+Download the latest Windows installer from:
+
+https://github.com/schulxf/flowz/releases/latest
+
+Run `FlowzSetup-*.exe`, open Flowz Settings, configure your transcription API
+key, and choose your microphone. The packaged installer includes FFmpeg, so no
+separate FFmpeg setup is needed for normal installation.
+
 ## Features
 
 - Hold-to-dictate hotkey: `Ctrl + Windows`.
@@ -55,13 +66,20 @@ Flowz is not affiliated with Wispr Flow or its makers.
 - Windows 10 or Windows 11.
 - A microphone.
 - An API key for transcription.
-- `ffmpeg`, selected or configured in settings.
 
-Running from source also requires Python 3.10 or newer.
+Running from source requires Python 3.10 or newer and FFmpeg on `PATH`.
 
 ## Quick Start
 
-Open settings:
+For the installer build:
+
+1. Download and run `FlowzSetup-*.exe`.
+2. Open Flowz Settings from the Start Menu or tray menu.
+3. Add your API key and test the connection.
+4. Pick your microphone and test the ready cue.
+5. Hold `Ctrl + Windows` to dictate in any text field.
+
+For source/dev usage, open settings:
 
 ```powershell
 .\Flowz.bat --settings
@@ -73,13 +91,13 @@ Run Flowz:
 .\Flowz.bat
 ```
 
-Install for the current Windows user:
+Source/dev install for the current Windows user:
 
 ```powershell
 .\install.ps1 -Build
 ```
 
-Install and start automatically with Windows:
+Source/dev install and start automatically with Windows:
 
 ```powershell
 .\install.ps1 -Build -StartWithWindows

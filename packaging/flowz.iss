@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.5"
 #endif
 
 #define AppName "Flowz"
@@ -96,7 +96,7 @@ begin
   begin
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'FreeFlowWin');
 
-    if IsTaskSelected('startup') then
+    if WizardIsTaskSelected('startup') then
     begin
       RunValue := '"' + ExpandConstant('{app}\Flowz.exe') + '"';
       RegWriteStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Flowz', RunValue);

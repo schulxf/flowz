@@ -1136,7 +1136,7 @@ class SettingsWindow:
         c.bind("<Configure>", paint)
         c.bind("<Button-1>", open_menu)
 
-        box = self._field_shell("ffmpeg path", "Executable name or full path.")
+        box = self._field_shell("ffmpeg path", "Leave as ffmpeg to use the bundled copy in the installer.")
         self._entry(box, "ffmpeg_path", mono=True)
 
         self._section_title("Warm capture")

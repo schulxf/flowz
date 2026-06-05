@@ -5,8 +5,8 @@ Flowz.
 Hold Ctrl + Windows to record, release to transcribe, then paste at the
 currently focused cursor.
 
-No third-party Python packages are required. Audio capture uses ffmpeg's
-DirectShow input, so ffmpeg must be available on PATH or configured below.
+No third-party Python packages are required. Packaged builds include ffmpeg
+for DirectShow audio capture; source builds can use ffmpeg from PATH.
 """
 
 from __future__ import annotations
@@ -156,6 +156,34 @@ def app_asset_path(filename: str) -> Path:
         if bundled.exists():
             return bundled
     return Path(__file__).resolve().parent / "assets" / filename
+
+
+def bundled_ffmpeg_path() -> Path | None:
+    candidates: list[Path] = []
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        candidates.append(Path(base) / "ffmpeg" / "ffmpeg.exe")
+        candidates.append(Path(base) / "assets" / "ffmpeg.exe")
+    app_dir = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    candidates.extend([
+        app_dir / "ffmpeg" / "ffmpeg.exe",
+        app_dir / "assets" / "ffmpeg.exe",
+        app_dir / "ffmpeg.exe",
+    ])
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def resolve_ffmpeg_path(value: str | None) -> str:
+    configured = (value or "").strip()
+    if configured in {"", "ffmpeg", "ffmpeg.exe"}:
+        bundled = bundled_ffmpeg_path()
+        if bundled:
+            return str(bundled)
+        return "ffmpeg"
+    return configured
 
 
 def migrate_legacy_config_if_needed() -> None:
@@ -416,7 +444,7 @@ def ensure_config(config: AppConfig) -> AppConfig:
 
 def list_audio_devices(ffmpeg_path: str) -> list[str]:
     command = [
-        ffmpeg_path,
+        resolve_ffmpeg_path(ffmpeg_path),
         "-hide_banner",
         "-list_devices",
         "true",
@@ -434,7 +462,7 @@ def list_audio_devices(ffmpeg_path: str) -> list[str]:
             creationflags=CREATE_NO_WINDOW,
         )
     except FileNotFoundError as exc:
-        raise RuntimeError("ffmpeg was not found on PATH. Set ffmpeg_path in config.json.") from exc
+        raise RuntimeError("ffmpeg was not found. Install Flowz from the packaged installer or set ffmpeg_path in config.json.") from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError("ffmpeg device listing timed out.") from exc
 
@@ -482,7 +510,7 @@ class FFmpegRecorder:
             device = self._resolve_device()
             output = Path(tempfile.gettempdir()) / f"flowz-{int(time.time())}-{random.randint(1000, 9999)}.wav"
             command = [
-                self.config.ffmpeg_path,
+                resolve_ffmpeg_path(self.config.ffmpeg_path),
                 "-hide_banner",
                 "-loglevel",
                 "error",
@@ -700,7 +728,7 @@ class WarmFFmpegRecorder(FFmpegRecorder):
     def _spawn_capture_locked(self) -> None:
         device = self._resolve_device()
         command = [
-            self.config.ffmpeg_path,
+            resolve_ffmpeg_path(self.config.ffmpeg_path),
             "-hide_banner",
             "-loglevel",
             "error",
@@ -3116,7 +3144,7 @@ def show_settings_gui(config: AppConfig) -> None:
         )
         empty.grid(row=3, column=0, sticky="w", pady=(6, 0))
     fields["ffmpeg_device"] = device_var
-    add_entry(capture, 0, 1, "ffmpeg path", "ffmpeg_path", "Executable name or full path.")
+    add_entry(capture, 0, 1, "ffmpeg path", "ffmpeg_path", "Leave as ffmpeg to use the bundled copy in packaged builds.")
     add_check(capture, 1, 0, "Low-latency capture", "low_latency_capture", "Keeps the microphone warm for faster response.")
     add_check(capture, 1, 1, "Prime on startup", "ffmpeg_prime_on_startup", "Runs a tiny capture at launch to wake the device.")
     add_entry(capture, 2, 0, "Idle timeout seconds", "low_latency_idle_timeout_seconds", "Releases warm capture after inactivity.")
