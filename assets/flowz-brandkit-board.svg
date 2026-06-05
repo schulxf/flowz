@@ -69,15 +69,15 @@
         filter: url(#panel-shadow);
       }
     </style>
-    <symbol id="flowz-wordmark" viewBox="0 0 1640 640">
+    <symbol id="flowz-wordmark" viewBox="0 0 1640 620">
       <g>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="74" d="M474 108 C399 66 347 152 322 301 C301 424 245 543 151 518 C76 499 105 395 222 334 C340 273 497 268 632 279 C683 283 723 293 762 309"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M126 358 C215 284 364 267 544 274 C625 277 690 290 762 309"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="74" d="M622 425 C573 366 583 238 649 128 C701 42 776 62 747 156 C723 234 634 333 619 389 C607 439 671 463 730 395"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="72" d="M744 387 C742 314 807 276 872 302 C949 333 951 427 877 462 C804 497 720 456 715 386 C711 331 752 298 815 299"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M930 357 C908 453 965 491 1030 381 C1004 474 1088 498 1148 394 C1182 335 1227 327 1237 379 C1250 443 1305 468 1353 396"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M1304 337 C1376 341 1448 342 1512 338 C1556 335 1559 366 1512 401 C1449 449 1367 493 1373 539 C1380 594 1490 574 1542 505"/>
-        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="56" d="M1538 506 C1563 478 1580 446 1588 413"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="54" d="M478 112 C405 82 358 146 338 274 C320 393 286 501 211 518 C167 528 141 506 151 469 C168 410 260 361 382 343 C488 327 607 340 720 374"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="48" d="M126 350 C233 284 410 268 592 287 C648 293 701 306 750 325"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="54" d="M640 404 C584 331 606 207 666 121 C714 52 778 67 754 147 C730 226 642 326 633 390 C626 443 690 457 735 393"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="52" d="M766 386 C759 330 798 292 851 292 C923 292 956 357 929 414 C902 467 820 481 776 432 C740 391 755 335 811 312"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="50" d="M960 350 C937 448 994 480 1043 376 C1024 469 1086 490 1138 389 C1172 323 1224 318 1237 377 C1251 443 1305 459 1352 386"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="50" d="M1307 327 C1383 335 1464 335 1532 326 C1559 323 1564 346 1537 369 C1484 414 1400 471 1374 512 C1356 540 1374 560 1421 554 C1490 544 1540 502 1572 452"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="38" d="M1568 452 C1584 428 1593 401 1596 373"/>
       </g>
     </symbol>
   </defs>

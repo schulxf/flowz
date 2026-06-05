@@ -633,7 +633,7 @@ class WarmFFmpegRecorder(FFmpegRecorder):
 
     def start(self) -> float:
         elapsed_ms = self.ensure_capture()
-        preroll_ms = int_setting(self.config.low_latency_preroll_ms, 500, 0, 5000)
+        preroll_ms = int_setting(self.config.low_latency_preroll_ms, 800, 0, 5000)
         preroll_bytes = pcm_bytes_for_ms(preroll_ms)
         with self._lock:
             if self._recording:
@@ -2554,51 +2554,174 @@ def show_settings_gui(config: AppConfig) -> None:
 
     root = tk.Tk()
     root.title(f"{APP_NAME} Settings")
-    root.resizable(False, False)
+    root.minsize(980, 680)
     root.attributes("-topmost", True)
+    root.configure(bg="#f8fcff")
 
-    frame = ttk.Frame(root, padding=14)
-    frame.grid(row=0, column=0, sticky="nsew")
+    style = ttk.Style(root)
+    try:
+        style.theme_use("clam")
+    except Exception:
+        pass
+    ink = "#071521"
+    muted = "#66798a"
+    blue = "#1289db"
+    mist = "#f8fcff"
+    panel = "#ffffff"
+    line = "#d8e8f4"
+    success = "#1fbe77"
+    error = "#d64555"
+    warning = "#c4871f"
+
+    style.configure(".", font=("Segoe UI", 10), background=mist, foreground=ink)
+    style.configure("Root.TFrame", background=mist)
+    style.configure("Sidebar.TFrame", background=ink)
+    style.configure("Panel.TFrame", background=panel)
+    style.configure("Section.TLabelframe", background=panel, foreground=ink, borderwidth=1, relief="solid")
+    style.configure("Section.TLabelframe.Label", background=panel, foreground=ink, font=("Segoe UI", 10, "bold"))
+    style.configure("Title.TLabel", background=mist, foreground=ink, font=("Segoe UI", 18, "bold"))
+    style.configure("Subtitle.TLabel", background=mist, foreground=muted, font=("Segoe UI", 9))
+    style.configure("SidebarTitle.TLabel", background=ink, foreground="#ffffff", font=("Segoe UI", 22, "bold"))
+    style.configure("SidebarMuted.TLabel", background=ink, foreground="#a8c4d7", font=("Segoe UI", 9))
+    style.configure("SidebarValue.TLabel", background=ink, foreground="#ffffff", font=("Segoe UI", 10, "bold"))
+    style.configure("FieldLabel.TLabel", background=panel, foreground=ink, font=("Segoe UI", 9, "bold"))
+    style.configure("FieldHelp.TLabel", background=panel, foreground=muted, font=("Segoe UI", 8))
+    style.configure("Status.TLabel", background=panel, foreground=muted, font=("Segoe UI", 9))
+    style.configure("Primary.TButton", background=ink, foreground="#ffffff", borderwidth=0, focusthickness=0, padding=(16, 9))
+    style.map("Primary.TButton", background=[("active", "#10283b"), ("pressed", "#050d14")])
+    style.configure("Accent.TButton", background=blue, foreground="#ffffff", borderwidth=0, focusthickness=0, padding=(13, 8))
+    style.map("Accent.TButton", background=[("active", "#0d78c3"), ("pressed", "#0867ab")])
+    style.configure("Quiet.TButton", background="#eef6fb", foreground=ink, borderwidth=0, focusthickness=0, padding=(13, 8))
+    style.map("Quiet.TButton", background=[("active", "#e4f1f9"), ("pressed", "#d5e8f4")])
+    style.configure("TEntry", fieldbackground="#ffffff", bordercolor=line, lightcolor=line, darkcolor=line, padding=7)
+    style.configure("TCombobox", fieldbackground="#ffffff", bordercolor=line, lightcolor=line, darkcolor=line, padding=7)
+    style.configure("TCheckbutton", background=panel, foreground=ink)
+    style.configure("TNotebook", background=mist, borderwidth=0)
+    style.configure("TNotebook.Tab", padding=(18, 9), font=("Segoe UI", 9, "bold"), background="#eaf4fb", foreground=muted)
+    style.map("TNotebook.Tab", background=[("selected", panel)], foreground=[("selected", ink)])
+
+    root.columnconfigure(0, weight=1)
+    root.rowconfigure(0, weight=1)
+
+    shell = ttk.Frame(root, style="Root.TFrame", padding=18)
+    shell.grid(row=0, column=0, sticky="nsew")
+    shell.columnconfigure(1, weight=1)
+    shell.rowconfigure(0, weight=1)
+
+    sidebar = ttk.Frame(shell, style="Sidebar.TFrame", padding=(24, 26))
+    sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+    sidebar.columnconfigure(0, minsize=230)
+
+    ttk.Label(sidebar, text="flowz", style="SidebarTitle.TLabel").grid(row=0, column=0, sticky="w")
+    ttk.Label(sidebar, text="Fast dictation settings", style="SidebarMuted.TLabel").grid(
+        row=1, column=0, sticky="w", pady=(2, 24)
+    )
+
+    status_dot = tk.Canvas(sidebar, width=10, height=10, bg=ink, highlightthickness=0)
+    status_dot.grid(row=2, column=0, sticky="w")
+    status_dot_id = status_dot.create_oval(1, 1, 9, 9, fill=success, outline=success)
+    status_var = tk.StringVar(value="Ready")
+    ttk.Label(sidebar, textvariable=status_var, style="SidebarValue.TLabel").grid(
+        row=3, column=0, sticky="w", pady=(6, 2)
+    )
+    ttk.Label(
+        sidebar,
+        text="Use Ctrl + Windows, wait for the cue, then speak.",
+        style="SidebarMuted.TLabel",
+        wraplength=210,
+    ).grid(row=4, column=0, sticky="w", pady=(0, 22))
+
+    summary_device = tk.StringVar(value=(config.ffmpeg_device or "Auto microphone"))
+    summary_latency = tk.StringVar(value=f"{int_setting(config.low_latency_preroll_ms, 800, 0, 5000)} ms pre-roll")
+    summary_sound = tk.StringVar(value="Ready cue on" if bool_setting(config.audio_ready_sound) else "Ready cue off")
+
+    def sidebar_metric(row_index: int, label: str, value: tk.StringVar) -> None:
+        ttk.Label(sidebar, text=label.upper(), style="SidebarMuted.TLabel").grid(
+            row=row_index, column=0, sticky="w", pady=(8, 0)
+        )
+        ttk.Label(sidebar, textvariable=value, style="SidebarValue.TLabel", wraplength=210).grid(
+            row=row_index + 1, column=0, sticky="w", pady=(2, 6)
+        )
+
+    sidebar_metric(5, "Microphone", summary_device)
+    sidebar_metric(7, "Capture", summary_latency)
+    sidebar_metric(9, "Cue", summary_sound)
+
+    ttk.Label(
+        sidebar,
+        text=f"Config\n{config_path()}",
+        style="SidebarMuted.TLabel",
+        wraplength=210,
+    ).grid(row=12, column=0, sticky="sw", pady=(34, 0))
+
+    main = ttk.Frame(shell, style="Root.TFrame")
+    main.grid(row=0, column=1, sticky="nsew")
+    main.columnconfigure(0, weight=1)
+    main.rowconfigure(1, weight=1)
+
+    header = ttk.Frame(main, style="Root.TFrame")
+    header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+    header.columnconfigure(0, weight=1)
+    ttk.Label(header, text="Flowz Settings", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+    ttk.Label(
+        header,
+        text="Voice capture, ready cue, transcription, and startup behavior.",
+        style="Subtitle.TLabel",
+    ).grid(row=1, column=0, sticky="w", pady=(3, 0))
+
+    notebook = ttk.Notebook(main)
+    notebook.grid(row=1, column=0, sticky="nsew")
 
     fields: dict[str, tk.Variable] = {}
+    def set_status(text: str, tone: str = "neutral") -> None:
+        colors = {"neutral": muted, "success": success, "error": error, "warning": warning, "busy": blue}
+        color = colors.get(tone, muted)
+        status_var.set(text)
+        status_dot.itemconfigure(status_dot_id, fill=color, outline=color)
 
-    def add_header(row: int, text: str) -> int:
-        label = ttk.Label(frame, text=text, font=("Segoe UI", 10, "bold"))
-        label.grid(row=row, column=0, columnspan=3, sticky="w", pady=(10 if row else 0, 6))
-        return row + 1
+    def make_page(name: str) -> ttk.Frame:
+        page = ttk.Frame(notebook, style="Panel.TFrame", padding=22)
+        page.columnconfigure(0, weight=1)
+        page.columnconfigure(1, weight=1)
+        notebook.add(page, text=name)
+        return page
 
-    def add_entry(row: int, label_text: str, key: str, width: int = 52, show: str = "") -> int:
-        ttk.Label(frame, text=label_text).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=3)
+    def add_block(parent: ttk.Frame, row: int, column: int, label_text: str, helper: str) -> ttk.Frame:
+        block = ttk.Frame(parent, style="Panel.TFrame")
+        block.grid(row=row, column=column, sticky="new", padx=(0 if column == 0 else 12, 12 if column == 0 else 0), pady=(0, 18))
+        block.columnconfigure(0, weight=1)
+        ttk.Label(block, text=label_text, style="FieldLabel.TLabel").grid(row=0, column=0, sticky="w")
+        if helper:
+            ttk.Label(block, text=helper, style="FieldHelp.TLabel", wraplength=310).grid(
+                row=1, column=0, sticky="w", pady=(2, 6)
+            )
+        return block
+
+    def add_entry(parent: ttk.Frame, row: int, column: int, label_text: str, key: str, helper: str, show: str = "") -> None:
+        block = add_block(parent, row, column, label_text, helper)
         var = tk.StringVar(value=str(getattr(config, key)))
-        entry = ttk.Entry(frame, textvariable=var, width=width, show=show)
-        entry.grid(row=row, column=1, columnspan=2, sticky="we", pady=3)
+        entry = ttk.Entry(block, textvariable=var, show=show)
+        entry.grid(row=2, column=0, sticky="ew")
         fields[key] = var
-        return row + 1
 
-    def add_int(row: int, label_text: str, key: str, width: int = 12) -> int:
-        ttk.Label(frame, text=label_text).grid(row=row, column=0, sticky="w", padx=(0, 10), pady=3)
-        var = tk.StringVar(value=str(getattr(config, key)))
-        entry = ttk.Entry(frame, textvariable=var, width=width)
-        entry.grid(row=row, column=1, sticky="w", pady=3)
-        fields[key] = var
-        return row + 1
-
-    def add_check(row: int, label_text: str, key: str) -> int:
+    def add_check(parent: ttk.Frame, row: int, column: int, label_text: str, key: str, helper: str) -> None:
+        block = add_block(parent, row, column, label_text, helper)
         var = tk.BooleanVar(value=bool_setting(getattr(config, key)))
-        checkbox = ttk.Checkbutton(frame, text=label_text, variable=var)
-        checkbox.grid(row=row, column=0, columnspan=3, sticky="w", pady=3)
+        checkbox = ttk.Checkbutton(block, text="Enabled", variable=var)
+        checkbox.grid(row=2, column=0, sticky="w")
         fields[key] = var
-        return row + 1
 
-    row = 0
-    row = add_header(row, "Provider")
-    row = add_entry(row, "API key", "api_key", show="*")
-    row = add_entry(row, "Base URL", "base_url")
-    row = add_entry(row, "Transcription model", "transcription_model")
-    row = add_entry(row, "Language", "language", width=18)
+    provider = make_page("Provider")
+    add_entry(provider, 0, 0, "API key", "api_key", "Stored locally in your Flowz config file.", show="*")
+    add_entry(provider, 0, 1, "Base URL", "base_url", "Any OpenAI-compatible transcription endpoint.")
+    add_entry(provider, 1, 0, "Transcription model", "transcription_model", "Example: whisper-large-v3.")
+    add_entry(provider, 1, 1, "Language", "language", "Optional ISO language hint. Leave blank for auto.")
+    add_entry(provider, 2, 0, "Request timeout seconds", "request_timeout_seconds", "Network timeout for API calls.")
+    add_entry(provider, 2, 1, "HTTP transport", "http_transport", "Use curl for Windows reliability, or urllib.")
+    add_entry(provider, 3, 0, "curl path", "curl_path", "Usually curl.exe on modern Windows.")
 
-    row = add_header(row, "Microphone")
-    ttk.Label(frame, text="Device").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=3)
+    capture = make_page("Capture")
+    device_block = add_block(capture, 0, 0, "Microphone device", "Pick the DirectShow input used by ffmpeg.")
     device_var = tk.StringVar(value=str(config.ffmpeg_device))
     devices: list[str] = []
     try:
@@ -2607,21 +2730,36 @@ def show_settings_gui(config: AppConfig) -> None:
         log(f"Could not list devices for settings GUI: {exc}")
     if config.ffmpeg_device and config.ffmpeg_device not in devices:
         devices.insert(0, config.ffmpeg_device)
-    device_combo = ttk.Combobox(frame, textvariable=device_var, values=devices, width=50)
-    device_combo.grid(row=row, column=1, columnspan=2, sticky="we", pady=3)
+    device_combo = ttk.Combobox(device_block, textvariable=device_var, values=devices)
+    device_combo.grid(row=2, column=0, sticky="ew")
+    if not devices:
+        empty = ttk.Label(
+            device_block,
+            text="No devices listed yet. Check ffmpeg path or plug in a microphone.",
+            style="FieldHelp.TLabel",
+            wraplength=310,
+        )
+        empty.grid(row=3, column=0, sticky="w", pady=(6, 0))
     fields["ffmpeg_device"] = device_var
-    row += 1
-    row = add_entry(row, "ffmpeg path", "ffmpeg_path")
-    row = add_check(row, "Low-latency capture", "low_latency_capture")
-    row = add_int(row, "Idle timeout seconds", "low_latency_idle_timeout_seconds")
-    row = add_int(row, "Pre-roll ms", "low_latency_preroll_ms")
+    add_entry(capture, 0, 1, "ffmpeg path", "ffmpeg_path", "Executable name or full path.")
+    add_check(capture, 1, 0, "Low-latency capture", "low_latency_capture", "Keeps the microphone warm for faster response.")
+    add_check(capture, 1, 1, "Prime on startup", "ffmpeg_prime_on_startup", "Runs a tiny capture at launch to wake the device.")
+    add_entry(capture, 2, 0, "Idle timeout seconds", "low_latency_idle_timeout_seconds", "Releases warm capture after inactivity.")
+    add_entry(capture, 2, 1, "Pre-roll milliseconds", "low_latency_preroll_ms", "Safety buffer that protects the first word.")
+    add_entry(capture, 3, 0, "Ring buffer seconds", "low_latency_ring_seconds", "Maximum warm audio history kept in memory.")
+    add_entry(capture, 3, 1, "Ready timeout milliseconds", "low_latency_ready_timeout_ms", "How long to wait for warm capture.")
+    add_entry(capture, 4, 0, "Startup probe milliseconds", "ffmpeg_startup_probe_ms", "Direct recording startup check duration.")
+    add_entry(capture, 4, 1, "Prime duration milliseconds", "ffmpeg_prime_duration_ms", "Length of startup priming capture.")
 
-    row = add_header(row, "Audio")
-    row = add_check(row, "Ready sound", "audio_ready_sound")
-    ttk.Label(frame, text="Sound file").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=3)
+    cue = make_page("Ready Cue")
+    add_check(cue, 0, 0, "Ready sound", "audio_ready_sound", "Audio confirmation that speech can begin.")
+    sound_file_block = add_block(cue, 0, 1, "Sound file", "Custom MP3 or WAV cue. Flowz clears captured cue audio before transcribing.")
     sound_file_var = tk.StringVar(value=str(config.audio_ready_sound_file))
     fields["audio_ready_sound_file"] = sound_file_var
-    ttk.Entry(frame, textvariable=sound_file_var, width=52).grid(row=row, column=1, sticky="we", pady=3)
+    sound_file_row = ttk.Frame(sound_file_block, style="Panel.TFrame")
+    sound_file_row.grid(row=2, column=0, sticky="ew")
+    sound_file_row.columnconfigure(0, weight=1)
+    ttk.Entry(sound_file_row, textvariable=sound_file_var).grid(row=0, column=0, sticky="ew")
 
     def browse_sound() -> None:
         selected = filedialog.askopenfilename(
@@ -2631,30 +2769,63 @@ def show_settings_gui(config: AppConfig) -> None:
         if selected:
             sound_file_var.set(selected)
 
-    ttk.Button(frame, text="Browse", command=browse_sound).grid(row=row, column=2, sticky="e", padx=(8, 0), pady=3)
-    row += 1
-    row = add_entry(row, "Sound backend", "audio_ready_sound_backend", width=18)
-    row = add_entry(row, "Windows sound alias", "audio_ready_sound_alias", width=24)
-    row = add_int(row, "Tone frequency Hz", "audio_ready_sound_frequency_hz")
-    row = add_int(row, "Tone duration ms", "audio_ready_sound_duration_ms")
-
-    row = add_header(row, "Transcription")
-    row = add_check(row, "Trim silence", "trim_silence")
-    row = add_int(row, "Silence threshold", "silence_threshold")
-    row = add_int(row, "Silence padding ms", "silence_padding_ms")
-    row = add_check(row, "Post-process text", "post_process")
-    row = add_check(row, "Paste result automatically", "paste_result")
-    row = add_check(row, "Preserve clipboard text", "preserve_text_clipboard")
-
-    row = add_header(row, "App")
-    row = add_check(row, "Visual indicator", "visual_indicator")
-    row = add_check(row, "Tray icon", "tray_icon")
-    row = add_check(row, "Log timing metrics", "log_timing_metrics")
-    startup_var = tk.BooleanVar(value=is_startup_enabled())
-    ttk.Checkbutton(frame, text="Start with Windows", variable=startup_var).grid(
-        row=row, column=0, columnspan=3, sticky="w", pady=3
+    ttk.Button(sound_file_row, text="Browse", style="Quiet.TButton", command=browse_sound).grid(
+        row=0, column=1, padx=(8, 0)
     )
-    row += 1
+    add_entry(cue, 1, 0, "Sound backend", "audio_ready_sound_backend", "file, system, alias, message, tone, or off.")
+    add_entry(cue, 1, 1, "Windows sound alias", "audio_ready_sound_alias", "Used when backend is system or alias.")
+    add_entry(cue, 2, 0, "Tone frequency Hz", "audio_ready_sound_frequency_hz", "Fallback tone frequency.")
+    add_entry(cue, 2, 1, "Tone duration ms", "audio_ready_sound_duration_ms", "Fallback tone duration.")
+
+    output = make_page("Output")
+    add_check(output, 0, 0, "Trim silence", "trim_silence", "Falls back to original audio if speech is quiet.")
+    add_entry(output, 0, 1, "Silence threshold", "silence_threshold", "Lower is more tolerant of soft voice.")
+    add_entry(output, 1, 0, "Silence padding ms", "silence_padding_ms", "Extra audio kept around detected speech.")
+    add_entry(output, 1, 1, "Minimum audio ms", "silence_min_audio_ms", "Minimum usable speech segment length.")
+    add_check(output, 2, 0, "Post-process text", "post_process", "Runs cleanup after transcription.")
+    add_entry(output, 2, 1, "Post-process model", "post_process_model", "Model used for cleanup.")
+    add_check(output, 3, 0, "Paste result automatically", "paste_result", "Paste at cursor after transcription.")
+    add_check(output, 3, 1, "Append space after sentence", "append_space_after_sentence", "Adds a trailing space after final punctuation.")
+    add_check(output, 4, 0, "Preserve clipboard text", "preserve_text_clipboard", "Restores prior clipboard text after paste.")
+
+    app_page = make_page("App")
+    add_check(app_page, 0, 0, "Visual indicator", "visual_indicator", "Shows capture and transcription status near the top of the screen.")
+    add_entry(app_page, 0, 1, "Success display seconds", "visual_indicator_success_seconds", "How long success states remain visible.")
+    add_check(app_page, 1, 0, "Tray icon", "tray_icon", "Adds pause, settings, and exit controls to the system tray.")
+    add_check(app_page, 1, 1, "Log timing metrics", "log_timing_metrics", "Writes capture, trim, transcription, and paste timings to the log.")
+    startup_var = tk.BooleanVar(value=is_startup_enabled())
+    startup_block = add_block(app_page, 2, 0, "Start with Windows", "Adds or removes the Flowz run key for this user.")
+    ttk.Checkbutton(startup_block, text="Enabled", variable=startup_var).grid(row=2, column=0, sticky="w")
+
+    diagnostics_block = add_block(app_page, 2, 1, "Diagnostics", "Run quick checks without leaving settings.")
+    diagnostics_row = ttk.Frame(diagnostics_block, style="Panel.TFrame")
+    diagnostics_row.grid(row=2, column=0, sticky="ew")
+
+    status_panel = ttk.Frame(main, style="Panel.TFrame", padding=(12, 10))
+    status_panel.grid(row=2, column=0, sticky="ew", pady=(14, 0))
+    status_panel.columnconfigure(0, weight=1)
+    status_text = tk.StringVar(value="Settings are editable. Save to persist changes.")
+    ttk.Label(status_panel, textvariable=status_text, style="Status.TLabel").grid(row=0, column=0, sticky="w")
+
+    def set_inline_status(text: str, tone: str = "neutral") -> None:
+        status_text.set(text)
+        set_status(text, tone)
+
+    integer_keys = {
+        "request_timeout_seconds",
+        "low_latency_idle_timeout_seconds",
+        "low_latency_preroll_ms",
+        "low_latency_ring_seconds",
+        "low_latency_ready_timeout_ms",
+        "ffmpeg_startup_probe_ms",
+        "ffmpeg_prime_duration_ms",
+        "audio_ready_sound_frequency_hz",
+        "audio_ready_sound_duration_ms",
+        "silence_threshold",
+        "silence_padding_ms",
+        "silence_min_audio_ms",
+    }
+    float_keys = {"visual_indicator_success_seconds"}
 
     def apply_form() -> None:
         string_keys = {
@@ -2662,47 +2833,55 @@ def show_settings_gui(config: AppConfig) -> None:
             "base_url",
             "transcription_model",
             "language",
+            "http_transport",
+            "curl_path",
             "ffmpeg_path",
             "ffmpeg_device",
             "audio_ready_sound_file",
             "audio_ready_sound_backend",
             "audio_ready_sound_alias",
+            "post_process_model",
         }
         bool_keys = {
             "low_latency_capture",
+            "ffmpeg_prime_on_startup",
             "audio_ready_sound",
             "trim_silence",
             "post_process",
             "paste_result",
+            "append_space_after_sentence",
             "preserve_text_clipboard",
             "visual_indicator",
             "tray_icon",
             "log_timing_metrics",
         }
-        int_keys = {
-            "low_latency_idle_timeout_seconds",
-            "low_latency_preroll_ms",
-            "audio_ready_sound_frequency_hz",
-            "audio_ready_sound_duration_ms",
-            "silence_threshold",
-            "silence_padding_ms",
-        }
         for key in string_keys:
             setattr(config, key, str(fields[key].get()).strip())
         for key in bool_keys:
             setattr(config, key, bool(fields[key].get()))
-        for key in int_keys:
+        for key in integer_keys:
             default = int(getattr(AppConfig(), key))
             setattr(config, key, int_setting(fields[key].get(), default, 0, 100000))
+        for key in float_keys:
+            default_float = float(getattr(AppConfig(), key))
+            try:
+                value = float(str(fields[key].get()).strip())
+            except (TypeError, ValueError):
+                value = default_float
+            setattr(config, key, max(0.1, min(value, 20.0)))
+        config.audio_quality_defaults_version = AppConfig().audio_quality_defaults_version
+        summary_device.set(config.ffmpeg_device or "Auto microphone")
+        summary_latency.set(f"{int_setting(config.low_latency_preroll_ms, 800, 0, 5000)} ms pre-roll")
+        summary_sound.set("Ready cue on" if bool_setting(config.audio_ready_sound) else "Ready cue off")
 
     def save() -> None:
         try:
             apply_form()
             config.save()
             set_startup_enabled(bool(startup_var.get()))
-            messagebox.showinfo(APP_NAME, f"Settings saved to {config_path()}")
+            set_inline_status(f"Saved to {config_path()}", "success")
         except Exception as exc:
-            messagebox.showerror(APP_NAME, f"Could not save settings: {exc}")
+            set_inline_status(f"Could not save settings: {exc}", "error")
 
     def save_and_close() -> None:
         save()
@@ -2711,20 +2890,55 @@ def show_settings_gui(config: AppConfig) -> None:
     def test_ready_sound() -> None:
         try:
             apply_form()
-            play_ready_sound(config)
+            set_inline_status("Playing ready cue.", "busy")
+            played = play_ready_sound(config)
+            set_inline_status("Ready cue sent." if played else "Ready cue is disabled.", "success" if played else "warning")
         except Exception as exc:
-            messagebox.showerror(APP_NAME, f"Could not play sound: {exc}")
+            set_inline_status(f"Could not play sound: {exc}", "error")
 
-    buttons = ttk.Frame(frame)
-    buttons.grid(row=row, column=0, columnspan=3, sticky="e", pady=(14, 0))
-    ttk.Button(buttons, text="Test sound", command=test_ready_sound).grid(row=0, column=0, padx=(0, 8))
-    ttk.Button(buttons, text="Save", command=save).grid(row=0, column=1, padx=(0, 8))
-    ttk.Button(buttons, text="Save and close", command=save_and_close).grid(row=0, column=2, padx=(0, 8))
-    ttk.Button(buttons, text="Cancel", command=root.destroy).grid(row=0, column=3)
+    def run_async(label: str, target: Callable[[], None]) -> None:
+        set_inline_status(label, "busy")
+
+        def worker() -> None:
+            try:
+                target()
+            except Exception as exc:
+                root.after(0, lambda: set_inline_status(str(exc), "error"))
+            else:
+                root.after(0, lambda: set_inline_status("Diagnostic completed. Check flowz.log for details.", "success"))
+
+        threading.Thread(target=worker, name="settings-diagnostic", daemon=True).start()
+
+    def run_record_test() -> None:
+        apply_form()
+        test_record(config, 3)
+
+    def run_api_test() -> None:
+        apply_form()
+        test_api(config)
+
+    def open_config_folder() -> None:
+        app_config_dir().mkdir(parents=True, exist_ok=True)
+        subprocess.Popen(["explorer.exe", str(app_config_dir())], creationflags=CREATE_NO_WINDOW)
+
+    ttk.Button(diagnostics_row, text="Record 3s", style="Quiet.TButton", command=lambda: run_async("Recording 3 second test.", run_record_test)).grid(
+        row=0, column=0, padx=(0, 8)
+    )
+    ttk.Button(diagnostics_row, text="Test API", style="Quiet.TButton", command=lambda: run_async("Testing provider API.", run_api_test)).grid(
+        row=0, column=1, padx=(0, 8)
+    )
+    ttk.Button(diagnostics_row, text="Open config", style="Quiet.TButton", command=open_config_folder).grid(row=0, column=2)
+
+    actions = ttk.Frame(status_panel, style="Panel.TFrame")
+    actions.grid(row=0, column=1, sticky="e")
+    ttk.Button(actions, text="Test cue", style="Quiet.TButton", command=test_ready_sound).grid(row=0, column=0, padx=(0, 8))
+    ttk.Button(actions, text="Save", style="Accent.TButton", command=save).grid(row=0, column=1, padx=(0, 8))
+    ttk.Button(actions, text="Save and close", style="Primary.TButton", command=save_and_close).grid(row=0, column=2, padx=(0, 8))
+    ttk.Button(actions, text="Cancel", style="Quiet.TButton", command=root.destroy).grid(row=0, column=3)
 
     root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
+    width = max(980, root.winfo_width())
+    height = max(680, root.winfo_height())
     x = max(0, (root.winfo_screenwidth() - width) // 2)
     y = max(0, (root.winfo_screenheight() - height) // 2)
     root.geometry(f"{width}x{height}+{x}+{y}")

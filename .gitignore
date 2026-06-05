@@ -27,6 +27,9 @@ build/
 dist/
 *.spec
 
+# Packaging output
+release/
+
 # Test/cache output
 .pytest_cache/
 .mypy_cache/

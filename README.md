@@ -115,6 +115,17 @@ The installer copies the app to:
 
 It also creates Start Menu shortcuts for Flowz and Flowz Settings.
 
+Build a distributable installer package:
+
+```powershell
+.\build-installer.ps1 -Version 0.1.4 -BuildExe
+```
+
+If Inno Setup is installed, this creates `release\FlowzSetup-0.1.4.exe` using
+`packaging\flowz.iss`. Otherwise it uses Windows IExpress as a local fallback
+and creates the same setup filename. Use `-ZipOnly` when you explicitly want a
+portable ZIP package instead.
+
 Uninstall:
 
 ```powershell
