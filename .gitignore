@@ -44,5 +44,6 @@ Desktop.ini
 
 # Temporary audio/output files
 freeflow-win-*.wav
+flowz-*.wav
 *.response
 *.curlrc

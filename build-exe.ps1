@@ -6,8 +6,8 @@ python -m pip install pyinstaller
 python -m PyInstaller `
     --noconsole `
     --onefile `
-    --name FreeFlowWin `
+    --name Flowz `
     --clean `
     freeflow_win.py
 
-Write-Host "Built: $PSScriptRoot\dist\FreeFlowWin.exe"
+Write-Host "Built: $PSScriptRoot\dist\Flowz.exe"

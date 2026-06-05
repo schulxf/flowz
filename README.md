@@ -1,41 +1,61 @@
-# FreeFlow Windows MVP
+<p align="center">
+  <img src="assets/flowz-logo.svg" alt="Flowz" width="560">
+</p>
 
-FreeFlow Windows MVP e um ditado por voz para Windows: segure `Ctrl + Windows`
-para gravar, solte as teclas para transcrever e o texto sera colado
-automaticamente no aplicativo que estiver em foco.
+<p align="center">
+  <strong>Fast voice dictation for Windows.</strong><br>
+  Hold a hotkey, speak, release, and Flowz pastes the transcription where you were typing.
+</p>
 
-Este repositorio contem uma versao Windows-first do FreeFlow, escrita em Python,
-com foco em rodar localmente com poucas dependencias. O app usa `ffmpeg` para
-capturar o microfone via DirectShow, `curl.exe` para chamadas HTTP por padrao e
-um endpoint compativel com OpenAI em `/audio/transcriptions`.
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#installer">Installer</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#donate">Donate</a>
+</p>
 
-Repositorio remoto:
+---
 
-```text
-https://github.com/schulxf/freeflow_ws.git
-```
+## Why Flowz
 
-## Visao geral
+Flowz is a free, open Windows-first alternative to voice dictation tools like
+Wispr Flow. It focuses on one tight workflow:
 
-- Atalho global: `Ctrl + Windows`.
-- Fluxo: grava audio, envia para transcricao, cola o texto com `Ctrl+V`.
-- Provider padrao: Groq, usando `https://api.groq.com/openai/v1`.
-- Modelo padrao: `whisper-large-v3`.
-- Sem dependencias Python de runtime alem da biblioteca padrao.
-- Interface discreta com indicador visual sempre ativo.
-- Suporte a execucao em terminal, em background com `pythonw.exe` ou como `.exe`.
+1. Click any text field.
+2. Hold `Ctrl + Windows`.
+3. Speak after the ready sound.
+4. Release the keys.
+5. Flowz transcribes and pastes the text.
 
-## Requisitos
+It uses `ffmpeg` for microphone capture and any OpenAI-compatible transcription
+endpoint, with Groq configured by default.
 
-- Windows 10 ou Windows 11.
-- Python 3.10 ou superior instalado e disponivel no PATH.
-- `ffmpeg` instalado e disponivel no PATH.
-- `curl.exe` disponivel. Em instalacoes modernas do Windows ele geralmente ja
-  vem instalado.
-- Uma API key de um provider compativel com a API da OpenAI. O padrao do projeto
-  e Groq.
+Flowz is not affiliated with Wispr Flow or its makers.
 
-Verifique as ferramentas:
+## Features
+
+- Global hold-to-dictate hotkey: `Ctrl + Windows`.
+- Low-latency warm microphone capture with idle timeout.
+- Pre-roll buffer to avoid clipping the first syllable.
+- Custom ready sound support, including `.mp3` and `.wav` files.
+- Silence trimming before upload.
+- Automatic paste with clipboard preservation.
+- Visual overlay and tray menu.
+- Graphical settings window.
+- Optional "Start with Windows" support.
+- Simple per-user PowerShell installer.
+- No third-party Python runtime packages.
+
+## Requirements
+
+- Windows 10 or Windows 11.
+- Python 3.10+ if running from source.
+- `ffmpeg` available on `PATH`, or configured in settings.
+- `curl.exe`, available by default on modern Windows.
+- API key for a provider compatible with OpenAI's `/audio/transcriptions` API.
+
+Check tools:
 
 ```powershell
 python --version
@@ -43,365 +63,215 @@ ffmpeg -version
 curl.exe --version
 ```
 
-Se `ffmpeg` nao estiver instalado, uma opcao e usar `winget`:
+## Quick Start
+
+Clone and enter the repo:
 
 ```powershell
-winget install Gyan.FFmpeg
+git clone https://github.com/schulxf/flowz.git
+cd flowz
 ```
 
-Depois de instalar, feche e abra o terminal novamente para o PATH ser recarregado.
+Configure Flowz:
 
-## Arquivos principais
+```powershell
+.\Flowz.bat --settings
+```
+
+Run it:
+
+```powershell
+.\Flowz.bat
+```
+
+Use it:
+
+1. Focus the app where you want text.
+2. Hold `Ctrl + Windows`.
+3. Start speaking after the sound or when the overlay says `Recording`.
+4. Release the keys.
+5. Flowz pastes the transcript.
+
+## Installer
+
+Build and install for the current Windows user:
+
+```powershell
+.\install.ps1 -Build
+```
+
+Install and start with Windows:
+
+```powershell
+.\install.ps1 -Build -StartWithWindows
+```
+
+The installer copies the app to:
 
 ```text
-freeflow_win.py              Codigo principal do app
-FreeFlowWin.bat              Executa o app no terminal
-FreeFlowWin-Background.bat   Executa em background com pythonw.exe
-FreeFlowWin-Stop.bat         Envia sinal para parar uma instancia em background
-FreeFlowWin.pyw              Entrada para execucao sem console
-build-exe.ps1                Gera o executavel com PyInstaller
-config.example.json          Exemplo de configuracao
-README.md                    Documentacao do projeto
+%LOCALAPPDATA%\Flowz\Flowz.exe
 ```
 
-Os diretorios `build/` e `dist/` sao gerados pelo PyInstaller e nao devem ser
-versionados. O executavel gerado fica em `dist\FreeFlowWin.exe`.
+It also creates Start Menu shortcuts for Flowz and Flowz Settings.
 
-## Instalacao para desenvolvimento
-
-Clone o repositorio:
+Uninstall:
 
 ```powershell
-git clone https://github.com/schulxf/freeflow_ws.git
-cd freeflow_ws
+.\uninstall.ps1
 ```
 
-Opcional, mas recomendado: crie um ambiente virtual.
+Remove the saved configuration too:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\uninstall.ps1 -RemoveConfig
 ```
 
-O app em si nao precisa instalar pacotes Python para rodar. Para gerar `.exe`, o
-script `build-exe.ps1` instala `pyinstaller` no Python ativo.
-
-## Configuracao inicial
-
-Execute o setup:
-
-```powershell
-.\FreeFlowWin.bat --setup
-```
-
-O setup pergunta:
-
-- API key.
-- Base URL do provider.
-- Modelo de transcricao.
-- Microfone detectado pelo `ffmpeg`.
-
-A configuracao e salva fora do repositorio, em:
-
-```powershell
-.\FreeFlowWin.bat --config-path
-```
-
-Normalmente o caminho sera:
-
-```text
-%APPDATA%\FreeFlowWin\config.json
-```
-
-Tambem e possivel configurar a chave por variavel de ambiente antes de iniciar:
-
-```powershell
-$env:FREEFLOW_API_KEY = "sua_api_key"
-.\FreeFlowWin.bat
-```
-
-As variaveis aceitas para chave sao:
-
-- `FREEFLOW_API_KEY`
-- `GROQ_API_KEY`
-- `OPENAI_API_KEY`
-
-Para trocar a URL base sem editar o JSON:
-
-```powershell
-$env:FREEFLOW_BASE_URL = "https://api.groq.com/openai/v1"
-```
-
-## Configuracao disponivel
-
-Exemplo base em `config.example.json`:
-
-```json
-{
-  "api_key": "",
-  "base_url": "https://api.groq.com/openai/v1",
-  "transcription_model": "whisper-large-v3",
-  "language": "",
-  "request_timeout_seconds": 60,
-  "http_transport": "curl",
-  "curl_path": "curl.exe",
-  "ffmpeg_path": "ffmpeg",
-  "ffmpeg_device": "",
-  "post_process": false,
-  "post_process_model": "openai/gpt-oss-20b",
-  "paste_result": true,
-  "append_space_after_sentence": true,
-  "preserve_text_clipboard": true,
-  "visual_indicator": true,
-  "visual_indicator_success_seconds": 1.1
-}
-```
-
-Campos principais:
-
-| Campo | Descricao |
-| --- | --- |
-| `api_key` | Chave do provider. Prefira salvar via `--setup` ou variavel de ambiente. |
-| `base_url` | URL base compativel com OpenAI. Padrao: Groq. |
-| `transcription_model` | Modelo usado em `/audio/transcriptions`. |
-| `language` | Idioma opcional da transcricao. Deixe vazio para autodeteccao. |
-| `request_timeout_seconds` | Timeout das chamadas HTTP. |
-| `http_transport` | `curl` por padrao. Pode ser alterado para `urllib`. |
-| `curl_path` | Caminho do `curl.exe`. |
-| `ffmpeg_path` | Caminho do `ffmpeg`. |
-| `ffmpeg_device` | Nome do microfone DirectShow. Vazio usa o primeiro detectado. |
-| `post_process` | Ativa limpeza do texto via `/chat/completions`. |
-| `post_process_model` | Modelo usado para limpeza quando `post_process` esta ativo. |
-| `paste_result` | Se `true`, cola automaticamente. Se `false`, apenas copia para clipboard. |
-| `append_space_after_sentence` | Adiciona espaco apos frases terminadas com `.`, `!` ou `?`. |
-| `preserve_text_clipboard` | Tenta restaurar o texto anterior do clipboard apos colar. |
-| `visual_indicator` | Mostra/oculta o indicador visual. |
-| `visual_indicator_success_seconds` | Tempo de feedback visual apos sucesso. |
-
-## Como usar
-
-Rode no terminal:
-
-```powershell
-.\FreeFlowWin.bat
-```
-
-Depois:
-
-1. Clique no campo de texto onde voce quer ditar.
-2. Segure `Ctrl + Windows`.
-3. Fale normalmente.
-4. Solte as duas teclas.
-5. Aguarde a transcricao ser colada automaticamente.
-
-Mantenha o terminal aberto enquanto o app estiver rodando. Ele mostra logs basicos
-de estado, microfone e erros.
-
-## Rodar sem terminal
-
-Para iniciar em background:
-
-```powershell
-.\FreeFlowWin-Background.bat
-```
-
-Ou de dois cliques em:
-
-```text
-FreeFlowWin.pyw
-```
-
-Para parar a instancia em background:
-
-```powershell
-.\FreeFlowWin-Stop.bat
-```
-
-## Comandos de diagnostico
-
-Listar microfones detectados pelo `ffmpeg`:
-
-```powershell
-.\FreeFlowWin.bat --list-devices
-```
-
-Gravar um WAV local por 3 segundos, sem chamar a API:
-
-```powershell
-.\FreeFlowWin.bat --test-record 3
-```
-
-Testar API key e conectividade com o provider:
-
-```powershell
-.\FreeFlowWin.bat --test-api
-```
-
-Testar colagem com `Ctrl+V` sem transcrever:
-
-```powershell
-.\FreeFlowWin.bat --test-paste
-```
-
-Visualizar estados do indicador visual:
-
-```powershell
-.\FreeFlowWin.bat --test-overlay
-```
-
-Mostrar caminho da configuracao:
-
-```powershell
-.\FreeFlowWin.bat --config-path
-```
-
-Parar uma instancia em execucao:
-
-```powershell
-.\FreeFlowWin.bat --stop
-```
-
-## Gerar executavel
-
-Execute:
+## Build EXE
 
 ```powershell
 .\build-exe.ps1
 ```
 
-O script instala `pyinstaller` no Python ativo e gera:
+Output:
 
 ```text
-dist\FreeFlowWin.exe
+dist\Flowz.exe
 ```
 
-Para rodar:
+Run the built app:
 
 ```powershell
-.\dist\FreeFlowWin.exe
+.\dist\Flowz.exe
 ```
 
-Para parar uma instancia do executavel:
+Open settings:
 
 ```powershell
-.\dist\FreeFlowWin.exe --stop
+.\dist\Flowz.exe --settings
 ```
 
-Recomendacao: nao versione `dist\FreeFlowWin.exe` no Git. Para distribuir binario,
-publique o executavel em uma Release do GitHub.
+Test the ready sound:
 
-## Logs e erros
+```powershell
+.\dist\Flowz.exe --test-sound
+```
 
-O app grava logs em:
+## Configuration
+
+Flowz stores config at:
 
 ```text
-%APPDATA%\FreeFlowWin\freeflow.log
+%APPDATA%\Flowz\config.json
 ```
 
-Quando ocorre uma falha com stack trace, os detalhes sao gravados em:
+If an older `%APPDATA%\FreeFlowWin\config.json` exists, Flowz migrates it on
+first run.
+
+Most settings can be edited in the GUI:
+
+```powershell
+.\Flowz.bat --settings
+```
+
+Important options:
+
+| Setting | Purpose |
+| --- | --- |
+| `api_key` | Provider API key. |
+| `base_url` | OpenAI-compatible API base URL. Default: Groq. |
+| `transcription_model` | Model used for transcription. |
+| `ffmpeg_device` | DirectShow microphone name. |
+| `low_latency_capture` | Keeps the mic warm for faster hotkey response. |
+| `low_latency_idle_timeout_seconds` | Releases warm capture after idle time. |
+| `low_latency_preroll_ms` | Includes audio before the hotkey to avoid clipping. |
+| `trim_silence` | Removes leading/trailing silence before upload. |
+| `audio_ready_sound_file` | Optional custom `.mp3` or `.wav` ready sound. |
+| `tray_icon` | Enables tray menu controls. |
+| `log_timing_metrics` | Logs timing for audio, trim, transcription, and paste. |
+
+## Custom Ready Sound
+
+Set `audio_ready_sound_file` in settings or `config.json`:
+
+```json
+{
+  "audio_ready_sound": true,
+  "audio_ready_sound_file": "D:\\Sync\\DEVELOPING-WIP\\FreeFlowWS\\ribhavagrawal-point-smooth-beep-230573.mp3",
+  "audio_ready_sound_backend": "file"
+}
+```
+
+Test it:
+
+```powershell
+.\Flowz.bat --test-sound
+```
+
+## Diagnostics
+
+List microphones:
+
+```powershell
+.\Flowz.bat --list-devices
+```
+
+Record a local WAV without calling the API:
+
+```powershell
+.\Flowz.bat --test-record 3
+```
+
+Test provider connectivity:
+
+```powershell
+.\Flowz.bat --test-api
+```
+
+Test paste behavior:
+
+```powershell
+.\Flowz.bat --test-paste
+```
+
+Show overlay states:
+
+```powershell
+.\Flowz.bat --test-overlay
+```
+
+Stop a running instance:
+
+```powershell
+.\Flowz.bat --stop
+```
+
+Logs:
 
 ```text
-%APPDATA%\FreeFlowWin\last-error.txt
+%APPDATA%\Flowz\flowz.log
+%APPDATA%\Flowz\last-error.txt
 ```
 
-## Solucao de problemas
+## Donate
 
-### `ffmpeg was not found on PATH`
+If Flowz saves you time, donations are welcome.
 
-Instale o `ffmpeg` e confirme:
-
-```powershell
-ffmpeg -version
-```
-
-Se preferir nao alterar PATH, edite `ffmpeg_path` no `config.json` com o caminho
-absoluto do executavel.
-
-### Nenhum microfone aparece
-
-Rode:
-
-```powershell
-.\FreeFlowWin.bat --list-devices
-```
-
-Verifique permissoes de microfone do Windows e se outro app consegue capturar
-audio. Depois rode `--setup` novamente para selecionar o dispositivo correto.
-
-### A transcricao funciona, mas nao cola
-
-Teste a colagem:
-
-```powershell
-.\FreeFlowWin.bat --test-paste
-```
-
-Alguns apps com permissao elevada podem bloquear entrada simulada enviada por um
-processo sem elevacao. Nesse caso, rode o FreeFlowWin com a mesma permissao do
-app de destino.
-
-### API retorna erro HTTP
-
-Rode:
-
-```powershell
-.\FreeFlowWin.bat --test-api
-```
-
-Confira `api_key`, `base_url`, `transcription_model` e se o provider aceita o
-endpoint `/audio/transcriptions`.
-
-### O atalho abre o menu do Windows
-
-O app tenta suprimir as teclas durante `Ctrl + Windows`. Se o menu aparecer,
-garanta que so existe uma instancia rodando:
-
-```powershell
-.\FreeFlowWin.bat --stop
-.\FreeFlowWin.bat
-```
-
-## Preparar e publicar no GitHub
-
-Este repositorio foi preparado para usar:
+EVM address:
 
 ```text
-https://github.com/schulxf/freeflow_ws.git
+0x5d72a048D7bd477DC25Bd34Be8Ca0bD58d3db0B4
 ```
 
-Fluxo recomendado:
+Works on EVM-compatible networks. Always verify the address before sending.
 
-```powershell
-git init
-git branch -M main
-git remote add origin https://github.com/schulxf/freeflow_ws.git
-git add .
-git commit -m "Initial FreeFlow Windows MVP"
-git push -u origin main
-```
+## Security Notes
 
-Se o remoto ja existir localmente:
+- Your API key is stored locally in `%APPDATA%\Flowz\config.json`.
+- Audio is sent only when you release the dictation hotkey.
+- With `low_latency_capture` enabled, Windows may show the microphone as in use
+  while Flowz keeps capture warm. It releases automatically after the idle
+  timeout, or manually from the tray menu.
 
-```powershell
-git remote set-url origin https://github.com/schulxf/freeflow_ws.git
-```
+## License
 
-Antes de commitar, confirme que arquivos sensiveis nao entraram no stage:
-
-```powershell
-git status --short
-```
-
-Nao versione:
-
-- `config.json`
-- `.env`
-- chaves de API
-- `build/`
-- `dist/`
-- logs locais
-
-## Licenca
-
-Defina a licenca do projeto antes de distribuir publicamente. Enquanto nao houver
-um arquivo `LICENSE`, todos os direitos ficam reservados por padrao.
+Add your preferred license before distributing publicly.
