@@ -75,6 +75,7 @@ function New-ZipPackage {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "install.ps1") -Destination $stagingDir -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "uninstall.ps1") -Destination $stagingDir -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "README.md") -Destination $stagingDir -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "THIRD_PARTY_NOTICES.md") -Destination $stagingDir -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "config.example.json") -Destination $stagingDir -Force
 
     if (Test-Path -LiteralPath $zipPath) {
@@ -123,6 +124,7 @@ function New-IExpressPackage {
 
     Copy-Item -LiteralPath $distExe -Destination (Join-Path $stagingDir "Flowz.exe") -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "README.md") -Destination $stagingDir -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "THIRD_PARTY_NOTICES.md") -Destination $stagingDir -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "config.example.json") -Destination $stagingDir -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "uninstall.ps1") -Destination $stagingDir -Force
 
@@ -146,6 +148,7 @@ Get-Process -Name "FreeFlowWin" -ErrorAction SilentlyContinue | Stop-Process -Fo
 
 Copy-Item -LiteralPath $sourceExe -Destination $targetExe -Force
 Copy-Item -LiteralPath (Join-Path $sourceDir "README.md") -Destination $installDir -Force -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath (Join-Path $sourceDir "THIRD_PARTY_NOTICES.md") -Destination $installDir -Force -ErrorAction SilentlyContinue
 Copy-Item -LiteralPath (Join-Path $sourceDir "config.example.json") -Destination $installDir -Force -ErrorAction SilentlyContinue
 Copy-Item -LiteralPath (Join-Path $sourceDir "uninstall.ps1") -Destination $installDir -Force -ErrorAction SilentlyContinue
 
@@ -204,6 +207,7 @@ SourceFiles0=%SourceDir%
 %FILE2%=
 %FILE3%=
 %FILE4%=
+%FILE5%=
 
 [Strings]
 TargetName=$targetName
@@ -213,8 +217,9 @@ SourceDir=$sourceDir
 FILE0="Flowz.exe"
 FILE1="install-iexpress.ps1"
 FILE2="README.md"
-FILE3="config.example.json"
-FILE4="uninstall.ps1"
+FILE3="THIRD_PARTY_NOTICES.md"
+FILE4="config.example.json"
+FILE5="uninstall.ps1"
 "@
 
     $sed | Set-Content -LiteralPath $sedPath -Encoding ASCII

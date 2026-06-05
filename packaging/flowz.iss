@@ -48,6 +48,7 @@ Name: "startup"; Description: "Start Flowz when Windows starts"; GroupDescriptio
 Source: "{#RepoRoot}\dist\{#AppExeName}"; DestDir: "{app}"; DestName: "{#AppExeName}"; Flags: ignoreversion restartreplace
 Source: "{#RepoRoot}\config.example.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RepoRoot}\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RepoRoot}\uninstall.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

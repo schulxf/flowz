@@ -42,7 +42,8 @@ https://github.com/schulxf/flowz/releases/latest
 
 Run `FlowzSetup-*.exe`, open Flowz Settings, configure your transcription API
 key, and choose your microphone. The packaged installer includes FFmpeg, so no
-separate FFmpeg setup is needed for normal installation.
+separate FFmpeg setup is needed for normal installation. See
+`THIRD_PARTY_NOTICES.md` for FFmpeg license/source information.
 
 ## Features
 
