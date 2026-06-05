@@ -37,6 +37,10 @@ release/
 .coverage
 htmlcov/
 
+# Node / Remotion
+node_modules/
+.npm-cache/
+
 # Editors and OS files
 .vscode/
 .idea/
