@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" role="img" aria-labelledby="brandkit-title brandkit-desc">
+  <title id="brandkit-title">Flowz Brand Kit Board</title>
+  <desc id="brandkit-desc">A premium 3 by 3 brand system board for Flowz, a fast Windows voice dictation app.</desc>
+  <defs>
+    <linearGradient id="board-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071521"/>
+      <stop offset="0.48" stop-color="#0A1D2D"/>
+      <stop offset="1" stop-color="#04101A"/>
+    </linearGradient>
+    <linearGradient id="flow-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#45BDFF"/>
+      <stop offset="0.38" stop-color="#1C9CEB"/>
+      <stop offset="0.72" stop-color="#1289DB"/>
+      <stop offset="1" stop-color="#0871C1"/>
+    </linearGradient>
+    <radialGradient id="mist" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.62" stop-color="#F8FCFF"/>
+      <stop offset="1" stop-color="#EAF7FF"/>
+    </radialGradient>
+    <filter id="panel-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="blue-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#1C9CEB" flood-opacity="0.38"/>
+    </filter>
+    <pattern id="micro-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#FFFFFF" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <style>
+      .caption {
+        fill: #7B94A8;
+        font-family: "Geist", "Segoe UI", sans-serif;
+        font-size: 16px;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+      .small {
+        fill: #AFC4D4;
+        font-family: "Geist", "Segoe UI", sans-serif;
+        font-size: 18px;
+      }
+      .body {
+        fill: #DCEAF4;
+        font-family: "Geist", "Segoe UI", sans-serif;
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+      .title {
+        fill: #FFFFFF;
+        font-family: "Cabinet Grotesk", "Satoshi", "Segoe UI", sans-serif;
+        font-size: 54px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+      .display {
+        fill: #071521;
+        font-family: "Cabinet Grotesk", "Satoshi", "Segoe UI", sans-serif;
+        font-size: 78px;
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+      .mono {
+        fill: #AFC4D4;
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+        font-size: 18px;
+      }
+      .panel {
+        filter: url(#panel-shadow);
+      }
+    </style>
+    <symbol id="flowz-wordmark" viewBox="0 0 1640 640">
+      <g>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="74" d="M474 108 C399 66 347 152 322 301 C301 424 245 543 151 518 C76 499 105 395 222 334 C340 273 497 268 632 279 C683 283 723 293 762 309"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M126 358 C215 284 364 267 544 274 C625 277 690 290 762 309"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="74" d="M622 425 C573 366 583 238 649 128 C701 42 776 62 747 156 C723 234 634 333 619 389 C607 439 671 463 730 395"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="72" d="M744 387 C742 314 807 276 872 302 C949 333 951 427 877 462 C804 497 720 456 715 386 C711 331 752 298 815 299"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M930 357 C908 453 965 491 1030 381 C1004 474 1088 498 1148 394 C1182 335 1227 327 1237 379 C1250 443 1305 468 1353 396"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="70" d="M1304 337 C1376 341 1448 342 1512 338 C1556 335 1559 366 1512 401 C1449 449 1367 493 1373 539 C1380 594 1490 574 1542 505"/>
+        <path fill="none" stroke="url(#flow-blue)" stroke-linecap="round" stroke-linejoin="round" stroke-width="56" d="M1538 506 C1563 478 1580 446 1588 413"/>
+      </g>
+    </symbol>
+  </defs>
+
+  <rect width="1920" height="1200" fill="url(#board-bg)"/>
+  <rect width="1920" height="1200" fill="url(#micro-grid)" opacity="0.72"/>
+  <circle cx="1460" cy="88" r="440" fill="#1C9CEB" opacity="0.09"/>
+  <circle cx="344" cy="1110" r="360" fill="#45BDFF" opacity="0.07"/>
+
+  <text x="80" y="74" class="caption">Flowz identity system</text>
+  <text x="1840" y="74" class="caption" text-anchor="end">voice to text, instantly</text>
+
+  <!-- Panel coordinates: x 80/660/1240, y 118/454/790, w 520, h 276 -->
+
+  <g class="panel">
+    <rect x="80" y="118" width="520" height="276" rx="22" fill="url(#mist)"/>
+    <circle cx="340" cy="258" r="170" fill="#1C9CEB" opacity="0.08"/>
+    <use href="#flowz-wordmark" x="126" y="174" width="428" height="168" filter="url(#blue-glow)"/>
+    <text x="340" y="344" text-anchor="middle" fill="#163044" font-family="Geist, Segoe UI, sans-serif" font-size="20">fast voice dictation for Windows</text>
+  </g>
+
+  <g class="panel">
+    <rect x="660" y="118" width="520" height="276" rx="22" fill="#0D2234" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="704" y="168" class="caption">motion logic</text>
+    <path d="M742 282 C835 188 935 185 1008 272 C1054 328 1105 330 1140 276" fill="none" stroke="#1C9CEB" stroke-width="14" stroke-linecap="round"/>
+    <path d="M742 282 C835 188 935 185 1008 272 C1054 328 1105 330 1140 276" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-dasharray="10 14" opacity="0.28"/>
+    <circle cx="742" cy="282" r="12" fill="#2CD889"/>
+    <circle cx="1140" cy="276" r="12" fill="#FF4D5E"/>
+    <text x="704" y="350" class="small">A continuous line: speech becomes text without a hard edge.</text>
+  </g>
+
+  <g class="panel">
+    <rect x="1240" y="118" width="520" height="276" rx="22" fill="#081827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <rect x="1284" y="158" width="432" height="196" rx="18" fill="#F8FCFF"/>
+    <rect x="1284" y="158" width="432" height="38" rx="18" fill="#EAF7FF"/>
+    <circle cx="1310" cy="177" r="5" fill="#FF4D5E"/>
+    <circle cx="1328" cy="177" r="5" fill="#E6A93A"/>
+    <circle cx="1346" cy="177" r="5" fill="#2CD889"/>
+    <rect x="1316" y="232" width="336" height="42" rx="21" fill="#071521"/>
+    <text x="1342" y="259" font-family="JetBrains Mono, Cascadia Code, monospace" font-size="17" fill="#FFFFFF">Ctrl + Win   speak now</text>
+    <path d="M1330 311 L1350 291 L1370 311 L1390 286 L1410 315 L1432 297 L1454 311" fill="none" stroke="#1C9CEB" stroke-width="7" stroke-linecap="round"/>
+    <text x="1488" y="316" fill="#163044" font-family="Geist, Segoe UI, sans-serif" font-size="20">pasted text</text>
+  </g>
+
+  <g class="panel">
+    <rect x="80" y="454" width="520" height="276" rx="22" fill="#0D2234" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="124" y="518" class="title">Hold.<tspan x="124" dy="62">Speak.</tspan><tspan x="124" dy="62">Release.</tspan></text>
+    <text x="124" y="676" class="small">A product rhythm short enough</text>
+    <text x="124" y="704" class="small">to remember and fast enough to trust.</text>
+  </g>
+
+  <g class="panel">
+    <rect x="660" y="454" width="520" height="276" rx="22" fill="#F8FCFF"/>
+    <text x="704" y="510" fill="#163044" font-family="Geist, Segoe UI, sans-serif" font-size="18" letter-spacing="0">PALETTE</text>
+    <g transform="translate(704 550)">
+      <circle cx="0" cy="0" r="34" fill="#45BDFF"/>
+      <circle cx="82" cy="0" r="34" fill="#1C9CEB"/>
+      <circle cx="164" cy="0" r="34" fill="#1289DB"/>
+      <circle cx="246" cy="0" r="34" fill="#0871C1"/>
+      <circle cx="328" cy="0" r="34" fill="#071521"/>
+      <circle cx="410" cy="0" r="34" fill="#2CD889"/>
+    </g>
+    <text x="704" y="646" fill="#071521" font-family="Cabinet Grotesk, Satoshi, Segoe UI, sans-serif" font-size="40" font-weight="760" letter-spacing="0">Mist-white surfaces,</text>
+    <text x="704" y="694" fill="#071521" font-family="Cabinet Grotesk, Satoshi, Segoe UI, sans-serif" font-size="40" font-weight="760" letter-spacing="0">blue motion accents.</text>
+  </g>
+
+  <g class="panel">
+    <rect x="1240" y="454" width="520" height="276" rx="22" fill="#0D2234" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="1284" y="520" class="caption">type system</text>
+    <text x="1284" y="590" fill="#FFFFFF" font-family="Cabinet Grotesk, Satoshi, Segoe UI, sans-serif" font-size="58" font-weight="760" letter-spacing="0">Cabinet Grotesk</text>
+    <text x="1284" y="640" class="body">Geist for interface clarity</text>
+    <text x="1284" y="688" class="mono">JetBrains Mono for commands</text>
+  </g>
+
+  <g class="panel">
+    <rect x="80" y="790" width="520" height="276" rx="22" fill="#F8FCFF"/>
+    <rect x="142" y="848" width="396" height="158" rx="22" fill="#FFFFFF" stroke="#DCEAF4"/>
+    <use href="#flowz-wordmark" x="176" y="866" width="158" height="62"/>
+    <text x="178" y="952" fill="#163044" font-family="Geist, Segoe UI, sans-serif" font-size="22">voice to text, instantly</text>
+    <path d="M412 941 C431 918 452 918 469 939 C481 954 498 952 510 936" fill="none" stroke="#1C9CEB" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g class="panel">
+    <rect x="660" y="790" width="520" height="276" rx="22" fill="#081827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="704" y="850" class="caption">visual world</text>
+    <rect x="704" y="884" width="188" height="128" rx="18" fill="#EAF7FF" opacity="0.92"/>
+    <path d="M720 965 C765 915 809 931 851 889" fill="none" stroke="#1C9CEB" stroke-width="10" stroke-linecap="round" opacity="0.74"/>
+    <rect x="920" y="884" width="216" height="128" rx="18" fill="#10283B"/>
+    <path d="M952 946 H1102" stroke="#45BDFF" stroke-width="8" stroke-linecap="round"/>
+    <path d="M952 976 H1044" stroke="#AFC4D4" stroke-width="8" stroke-linecap="round" opacity="0.45"/>
+    <text x="704" y="1036" class="small">Clean app surfaces, soft signal traces, no generic AI glow.</text>
+  </g>
+
+  <g class="panel">
+    <rect x="1240" y="790" width="520" height="276" rx="22" fill="#F8FCFF"/>
+    <text x="1284" y="850" fill="#163044" font-family="Geist, Segoe UI, sans-serif" font-size="18" letter-spacing="0">SYSTEM DETAIL</text>
+    <rect x="1284" y="890" width="146" height="48" rx="24" fill="#071521"/>
+    <text x="1310" y="920" fill="#FFFFFF" font-family="Geist, Segoe UI, sans-serif" font-size="18">Recording</text>
+    <rect x="1450" y="890" width="108" height="48" rx="24" fill="#2CD889"/>
+    <text x="1477" y="920" fill="#071521" font-family="Geist, Segoe UI, sans-serif" font-size="18">Ready</text>
+    <rect x="1578" y="890" width="104" height="48" rx="24" fill="#E6A93A"/>
+    <text x="1604" y="920" fill="#071521" font-family="Geist, Segoe UI, sans-serif" font-size="18">Paused</text>
+    <text x="1284" y="986" fill="#071521" font-family="Cabinet Grotesk, Satoshi, Segoe UI, sans-serif" font-size="38" font-weight="760" letter-spacing="0">The interface confirms</text>
+    <text x="1284" y="1032" fill="#071521" font-family="Cabinet Grotesk, Satoshi, Segoe UI, sans-serif" font-size="38" font-weight="760" letter-spacing="0">when speech can begin.</text>
+  </g>
+
+  <text x="80" y="1140" class="caption">primary asset: assets/flowz-logo.svg</text>
+  <text x="1840" y="1140" class="caption" text-anchor="end">donate: 0x5d72...d3db0B4</text>
+</svg>

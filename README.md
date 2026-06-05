@@ -8,10 +8,11 @@
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#installer">Installer</a> ·
-  <a href="#configuration">Configuration</a> ·
+  <a href="#features">Features</a> -
+  <a href="#quick-start">Quick start</a> -
+  <a href="#installer">Installer</a> -
+  <a href="#brand-kit">Brand kit</a> -
+  <a href="#configuration">Configuration</a> -
   <a href="#donate">Donate</a>
 </p>
 
@@ -125,6 +126,22 @@ Remove the saved configuration too:
 ```powershell
 .\uninstall.ps1 -RemoveConfig
 ```
+
+## Brand Kit
+
+Flowz has a lightweight identity system for README, website, installer, and app
+surfaces:
+
+```text
+BRANDKIT.md
+assets/flowz-logo.svg
+assets/flowz-brandkit-board.svg
+```
+
+The system is built around a fluid blue wordmark, mist-white surfaces, dark ink
+panels, and concise product copy. The full guide covers color tokens,
+typography, motion, UI states, sound identity, website direction, and usage
+rules.
 
 ## Build EXE
 

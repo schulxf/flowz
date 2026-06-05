@@ -1,22 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" role="img" aria-label="Flowz logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 640" role="img" aria-labelledby="flowz-logo-title flowz-logo-desc">
+  <title id="flowz-logo-title">Flowz</title>
+  <desc id="flowz-logo-desc">A polished fluid blue handwritten Flowz wordmark on a transparent background.</desc>
   <defs>
-    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="62%" stop-color="#f8fdff"/>
-      <stop offset="100%" stop-color="#eef8ff"/>
-    </radialGradient>
-    <linearGradient id="blue" x1="18%" y1="18%" x2="82%" y2="82%">
-      <stop offset="0%" stop-color="#42b8ff"/>
-      <stop offset="52%" stop-color="#168fe0"/>
-      <stop offset="100%" stop-color="#0b78c8"/>
+    <linearGradient id="flowz-blue" x1="134" y1="125" x2="1518" y2="542" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#53C6FF"/>
+      <stop offset="0.36" stop-color="#249FEA"/>
+      <stop offset="0.72" stop-color="#148ADC"/>
+      <stop offset="1" stop-color="#0773C7"/>
     </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#168fe0" flood-opacity="0.18"/>
+    <linearGradient id="flowz-shade" x1="120" y1="476" x2="1498" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0871C1" stop-opacity="0.28"/>
+      <stop offset="0.48" stop-color="#0871C1" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#45BDFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="flowz-highlight" x1="228" y1="138" x2="1266" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.46"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="flowz-soft-shadow" x="-8%" y="-18%" width="116%" height="144%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#0871C1" flood-opacity="0.18"/>
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#0871C1" flood-opacity="0.14"/>
     </filter>
+    <style>
+      .stroke-main {
+        fill: none;
+        stroke: url(#flowz-blue);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .stroke-shade {
+        fill: none;
+        stroke: url(#flowz-shade);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .stroke-highlight {
+        fill: none;
+        stroke: url(#flowz-highlight);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
   </defs>
-  <rect width="1600" height="640" fill="url(#bg)"/>
-  <text x="50%" y="55%" text-anchor="middle"
-        font-family="Segoe Script, Brush Script MT, Pacifico, cursive"
-        font-size="250" font-weight="700"
-        fill="url(#blue)" filter="url(#softShadow)">flowz</text>
+
+  <g filter="url(#flowz-soft-shadow)">
+    <path class="stroke-shade" stroke-width="86" d="M481 120 C404 75 344 154 321 297 C301 424 247 545 149 522 C71 503 101 395 222 334 C341 274 496 269 632 280 C683 284 721 293 761 309"/>
+    <path class="stroke-shade" stroke-width="82" d="M622 425 C573 365 583 238 650 127 C704 39 777 63 748 157 C724 235 633 333 619 389 C607 439 671 463 730 395"/>
+    <path class="stroke-shade" stroke-width="80" d="M744 387 C743 315 808 276 872 302 C949 333 951 427 877 462 C804 497 720 456 715 386 C711 331 752 298 815 299"/>
+    <path class="stroke-shade" stroke-width="78" d="M930 357 C908 453 965 491 1030 381 C1004 474 1088 498 1148 394 C1182 335 1227 327 1237 379 C1250 443 1305 468 1353 396"/>
+    <path class="stroke-shade" stroke-width="78" d="M1304 337 C1376 341 1448 342 1512 338 C1556 335 1559 366 1512 401 C1449 449 1367 493 1373 539 C1380 594 1490 574 1542 505"/>
+
+    <path class="stroke-main" stroke-width="74" d="M474 108 C399 66 347 152 322 301 C301 424 245 543 151 518 C76 499 105 395 222 334 C340 273 497 268 632 279 C683 283 723 293 762 309"/>
+    <path class="stroke-main" stroke-width="70" d="M126 358 C215 284 364 267 544 274 C625 277 690 290 762 309"/>
+    <path class="stroke-main" stroke-width="74" d="M622 425 C573 366 583 238 649 128 C701 42 776 62 747 156 C723 234 634 333 619 389 C607 439 671 463 730 395"/>
+    <path class="stroke-main" stroke-width="72" d="M744 387 C742 314 807 276 872 302 C949 333 951 427 877 462 C804 497 720 456 715 386 C711 331 752 298 815 299"/>
+    <path class="stroke-main" stroke-width="70" d="M930 357 C908 453 965 491 1030 381 C1004 474 1088 498 1148 394 C1182 335 1227 327 1237 379 C1250 443 1305 468 1353 396"/>
+    <path class="stroke-main" stroke-width="70" d="M1304 337 C1376 341 1448 342 1512 338 C1556 335 1559 366 1512 401 C1449 449 1367 493 1373 539 C1380 594 1490 574 1542 505"/>
+    <path class="stroke-main" stroke-width="56" d="M1538 506 C1563 478 1580 446 1588 413"/>
+  </g>
+
+  <g opacity="0.66">
+    <path class="stroke-highlight" stroke-width="15" d="M448 122 C404 107 370 163 350 273"/>
+    <path class="stroke-highlight" stroke-width="14" d="M170 350 C268 290 407 285 553 290"/>
+    <path class="stroke-highlight" stroke-width="15" d="M665 127 C711 65 747 80 730 148"/>
+    <path class="stroke-highlight" stroke-width="14" d="M757 343 C785 306 844 297 890 329"/>
+    <path class="stroke-highlight" stroke-width="13" d="M951 369 C947 421 970 433 1014 388"/>
+    <path class="stroke-highlight" stroke-width="13" d="M1328 341 C1394 346 1460 345 1510 341"/>
+  </g>
 </svg>
